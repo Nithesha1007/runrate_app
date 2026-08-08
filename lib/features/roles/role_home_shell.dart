@@ -40,21 +40,45 @@ class RoleHomeShell extends StatelessWidget {
   List<Widget> _tabsFor(RoleEnum role) {
     switch (role) {
       case RoleEnum.ceo:
-        return const [CeoHomeScreen(), CeoAiScreen(), CeoTeamsScreen(), CeoApprovalsScreen(), CeoMoreScreen()];
+        return [
+          const CeoHomeScreen(),
+          const CeoAiScreen(),
+          const CeoTeamsScreen(),
+          const CeoApprovalsScreen(),
+          const CeoMoreScreen(),
+        ];
       case RoleEnum.cfo:
-        return const [CfoHomeScreen(), CfoAiScreen(), CfoTeamsScreen(), CfoApprovalsScreen(), CfoMoreScreen()];
-      case RoleEnum.engineeringManager:
         return const [
-          EngineeringManagerHomeScreen(),
-          EngineeringManagerAiScreen(),
-          EngineeringManagerTeamsScreen(),
-          EngineeringManagerApprovalsScreen(),
-          EngineeringManagerMoreScreen(),
+          CfoHomeScreen(),
+          CfoAiScreen(),
+          CfoTeamsScreen(),
+          CfoApprovalsScreen(),
+          CfoMoreScreen()
+        ];
+      case RoleEnum.engineeringManager:
+        return [
+          const EngineeringManagerHomeScreen(),
+          const EngineeringManagerAiScreen(),
+          const EngineeringManagerTeamsScreen(),
+          const EngineeringManagerApprovalsScreen(),
+          const EngineeringManagerMoreScreen(),
         ];
       case RoleEnum.employee:
-        return const [EmployeeHomeScreen(), EmployeeAiScreen(), EmployeeTeamsScreen(), EmployeeApprovalsScreen(), EmployeeMoreScreen()];
+        return [
+          const EmployeeHomeScreen(),
+          const EmployeeAiScreen(),
+          const EmployeeTeamsScreen(),
+          const EmployeeApprovalsScreen(),
+          const EmployeeMoreScreen(),
+        ];
       case RoleEnum.orgAdmin:
-        return const [OrgAdminHomeScreen(), OrgAdminAiScreen(), OrgAdminTeamsScreen(), OrgAdminApprovalsScreen(), OrgAdminMoreScreen()];
+        return [
+          const OrgAdminHomeScreen(),
+          const OrgAdminAiScreen(),
+          const OrgAdminTeamsScreen(),
+          const OrgAdminApprovalsScreen(),
+          const OrgAdminMoreScreen(),
+        ];
     }
   }
 
@@ -69,14 +93,18 @@ class RoleHomeShell extends StatelessWidget {
           body: IndexedStack(index: index, children: tabs),
           bottomNavigationBar: NavigationBar(
             selectedIndex: index,
-            onDestinationSelected: (i) => context.read<BottomNavCubit>().setIndex(i),
+            onDestinationSelected: (i) =>
+                context.read<BottomNavCubit>().setIndex(i),
             animationDuration: const Duration(milliseconds: 250),
             destinations: const [
               NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
-              NavigationDestination(icon: Icon(Icons.auto_awesome), label: 'AI'),
+              NavigationDestination(
+                  icon: Icon(Icons.auto_awesome), label: 'AI'),
               NavigationDestination(icon: Icon(Icons.group), label: 'Teams'),
-              NavigationDestination(icon: Icon(Icons.check_circle), label: 'Approvals'),
-              NavigationDestination(icon: Icon(Icons.more_horiz), label: 'More'),
+              NavigationDestination(
+                  icon: Icon(Icons.check_circle), label: 'Approvals'),
+              NavigationDestination(
+                  icon: Icon(Icons.more_horiz), label: 'More'),
             ],
           ),
         );
