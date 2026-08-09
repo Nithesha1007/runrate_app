@@ -1,18 +1,34 @@
 import 'package:equatable/equatable.dart';
-import '../../../../shared/models/team_model.dart';
+import 'package:runrate/features/roles/ceo/shared/models/home_models.dart';
 
 class CeoTeamsState extends Equatable {
-  final List<TeamModel> allDepartments;
+  final List<DepartmentSummary> allDepartments;
   final String query;
   final bool loading;
 
-  const CeoTeamsState({this.allDepartments = const [], this.query = '', this.loading = true});
+  const CeoTeamsState(
+      {this.allDepartments = const [], this.query = '', this.loading = true});
 
-  List<TeamModel> get filtered => query.isEmpty
-      ? allDepartments
-      : allDepartments.where((d) => d.name.toLowerCase().contains(query.toLowerCase())).toList();
+  List<DepartmentSummary> get filtered {
+    if (query.isEmpty) return allDepartments;
+    final q = query.toLowerCase();
+    return allDepartments
+        .where((d) =>
+            d.team.name.toLowerCase().contains(q) ||
+            d.leadName.toLowerCase().contains(q))
+        .toList();
+  }
 
-  CeoTeamsState copyWith({List<TeamModel>? allDepartments, String? query, bool? loading}) {
+  int get totalEmployees =>
+      allDepartments.fold(0, (sum, d) => sum + d.team.memberCount);
+
+  int get departmentCount => allDepartments.length;
+
+  CeoTeamsState copyWith({
+    List<DepartmentSummary>? allDepartments,
+    String? query,
+    bool? loading,
+  }) {
     return CeoTeamsState(
       allDepartments: allDepartments ?? this.allDepartments,
       query: query ?? this.query,

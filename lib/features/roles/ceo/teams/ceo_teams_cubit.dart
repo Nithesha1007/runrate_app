@@ -10,7 +10,7 @@ class CeoTeamsCubit extends Cubit<CeoTeamsState> {
 
   Future<void> load() async {
     emit(state.copyWith(loading: true));
-    final departments = await _repo.fetchDepartments();
+    final departments = await _repo.fetchDepartmentSummaries();
     emit(state.copyWith(allDepartments: departments, loading: false));
   }
 

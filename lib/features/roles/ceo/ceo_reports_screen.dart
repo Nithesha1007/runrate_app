@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../data/ceo_mock_repository.dart';
+import 'package:runrate/features/roles/ceo/data/ceo_mock_repository.dart';
+
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../shared/models/report_model.dart';
 import '../../../../shared/widgets/app_card.dart';
