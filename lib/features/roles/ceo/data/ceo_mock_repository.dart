@@ -200,6 +200,8 @@ class CeoMockRepository {
           name: roster[i][0],
           role: roster[i][1],
           department: departmentName,
+          aiSpend: 1200.0 + (i * 450.0),
+          toolsUsed: 2 + (i % 6),
         ),
     ];
   }

@@ -8,6 +8,7 @@ import 'core/di/injection.dart';
 import 'features/authentication/cubit/auth_cubit.dart';
 import 'features/authentication/data/mock_auth_repository.dart';
 import 'features/notifications/notifications_cubit.dart';
+import 'features/roles/ceo/more/profile_cubit.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,6 +29,7 @@ class RunrateApp extends StatelessWidget {
         BlocProvider(create: (_) => ThemeCubit(initialMode: initialThemeMode)),
         BlocProvider(create: (_) => AuthCubit(getIt<MockAuthRepository>())),
         BlocProvider(create: (_) => NotificationsCubit()),
+        BlocProvider(create: (_) => ProfileCubit()),
       ],
       child: BlocBuilder<ThemeCubit, ThemeMode>(
         builder: (context, mode) {

@@ -1,84 +1,112 @@
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'pending_requests_repository.dart';
 
-enum ApprovalType { timeOff, expense, toolAccess, resourceRequest }
-
-extension ApprovalTypeLabel on ApprovalType {
-  String get label {
-    switch (this) {
-      case ApprovalType.timeOff:
-        return 'Time off';
-      case ApprovalType.expense:
-        return 'Expense';
-      case ApprovalType.toolAccess:
-        return 'Tool access';
-      case ApprovalType.resourceRequest:
-        return 'Resource request';
-    }
-  }
-}
-
-class ApprovalRequest {
-  const ApprovalRequest({
-    required this.id,
-    required this.requesterName,
-    required this.requesterInitials,
-    required this.type,
-    required this.detail,
-    required this.submittedAgo,
+/// Team budget context for the hero card.
+/// ASSUMPTION FLAG: I don't have your budget data source, so this is a
+/// static mock. If EM Home already tracks a team budget somewhere, wire
+/// `_budget` below to that instead so Home and Approvals agree on the
+/// remaining-budget number.
+class TeamBudgetInfo {
+  const TeamBudgetInfo({
+    required this.totalMonthlyBudget,
+    required this.remainingBudget,
   });
-
-  final String id;
-  final String requesterName;
-  final String requesterInitials;
-  final ApprovalType type;
-  final String detail;
-  final String submittedAgo;
+  final double totalMonthlyBudget;
+  final double remainingBudget;
 }
 
 class EngineeringManagerApprovalsData {
-  const EngineeringManagerApprovalsData({required this.pending});
+  const EngineeringManagerApprovalsData({
+    required this.requests,
+    required this.budget,
+  });
 
-  final List<ApprovalRequest> pending;
+  final List<PendingRequestData> requests;
+  final TeamBudgetInfo budget;
+
+  List<PendingRequestData> get pending {
+    final list =
+        requests.where((r) => r.decision == RequestDecision.pending).toList();
+    list.sort((a, b) => a.priority.sortWeight.compareTo(b.priority.sortWeight));
+    return list;
+  }
+
+  List<PendingRequestData> get history {
+    final list =
+        requests.where((r) => r.decision != RequestDecision.pending).toList();
+    list.sort((a, b) =>
+        (b.decidedAt ?? b.requestDate).compareTo(a.decidedAt ?? a.requestDate));
+    return list;
+  }
+
+  int get pendingCount => pending.length;
+  int get urgentCount =>
+      pending.where((r) => r.priority == RequestPriority.high).length;
+  double get totalMonthlyPending =>
+      pending.fold(0.0, (sum, r) => sum + r.monthlyCost);
+
+  /// Count for a priority filter chip. Pass null for "All".
+  int countFor(RequestPriority? p) => p == null
+      ? pending.length
+      : pending.where((r) => r.priority == p).length;
 }
 
 sealed class EngineeringManagerApprovalsState {
   const EngineeringManagerApprovalsState();
 }
 
-class EngineeringManagerApprovalsInitial extends EngineeringManagerApprovalsState {
-  const EngineeringManagerApprovalsInitial();
-}
-
-class EngineeringManagerApprovalsLoading extends EngineeringManagerApprovalsState {
+class EngineeringManagerApprovalsLoading
+    extends EngineeringManagerApprovalsState {
   const EngineeringManagerApprovalsLoading();
 }
 
-class EngineeringManagerApprovalsLoaded extends EngineeringManagerApprovalsState {
-  const EngineeringManagerApprovalsLoaded(this.data, {this.isProcessing = false});
+class EngineeringManagerApprovalsLoaded
+    extends EngineeringManagerApprovalsState {
+  const EngineeringManagerApprovalsLoaded(this.data, {this.processingId});
 
   final EngineeringManagerApprovalsData data;
-  final bool isProcessing;
+
+  /// id of the request currently being actioned, if any.
+  final String? processingId;
+
+  bool get isProcessing => processingId != null;
 }
 
-class EngineeringManagerApprovalsError extends EngineeringManagerApprovalsState {
+class EngineeringManagerApprovalsError
+    extends EngineeringManagerApprovalsState {
   const EngineeringManagerApprovalsError(this.message);
-
   final String message;
 }
 
-/// Cubit for Engineering Manager · Approvals.
-///
-/// `loadApprovals()`, `approve()`, and `reject()` call mock repository
-/// methods with an artificial delay per spec section 12. Swap the `_mock*`
-/// methods for real repository calls once the API is available.
-class EngineeringManagerApprovalsCubit extends Cubit<EngineeringManagerApprovalsState> {
-  EngineeringManagerApprovalsCubit() : super(const EngineeringManagerApprovalsInitial());
+/// Reads and writes through [PendingRequestsRepository.instance] — see
+/// that file's doc comment for how to point your existing
+/// `EngineeringManagerHomeCubit` at the same source so pending counts
+/// never drift between Home and this screen.
+class EngineeringManagerApprovalsCubit
+    extends Cubit<EngineeringManagerApprovalsState> {
+  EngineeringManagerApprovalsCubit()
+      : super(const EngineeringManagerApprovalsLoading()) {
+    _sub = PendingRequestsRepository.instance.changes.listen(_onRepoChange);
+    loadApprovals();
+  }
+
+  late final StreamSubscription<List<PendingRequestData>> _sub;
+
+  // Mock — see class doc comment above.
+  static const _budget =
+      TeamBudgetInfo(totalMonthlyBudget: 60000, remainingBudget: 22400);
 
   Future<void> loadApprovals() async {
     emit(const EngineeringManagerApprovalsLoading());
     try {
-      final pending = await _mockFetchApprovals();
-      emit(EngineeringManagerApprovalsLoaded(EngineeringManagerApprovalsData(pending: pending)));
+      await Future.delayed(const Duration(milliseconds: 600));
+      emit(EngineeringManagerApprovalsLoaded(
+        EngineeringManagerApprovalsData(
+          requests: PendingRequestsRepository.instance.all,
+          budget: _budget,
+        ),
+      ));
     } catch (e) {
       emit(EngineeringManagerApprovalsError(e.toString()));
     }
@@ -86,71 +114,50 @@ class EngineeringManagerApprovalsCubit extends Cubit<EngineeringManagerApprovals
 
   Future<void> refresh() => loadApprovals();
 
+  void _onRepoChange(List<PendingRequestData> requests) {
+    final current = state;
+    if (current is EngineeringManagerApprovalsLoaded) {
+      emit(EngineeringManagerApprovalsLoaded(
+        EngineeringManagerApprovalsData(
+            requests: requests, budget: current.data.budget),
+      ));
+    }
+  }
+
   Future<void> approve(String requestId) async {
     final current = state;
     if (current is! EngineeringManagerApprovalsLoaded) return;
 
-    emit(EngineeringManagerApprovalsLoaded(current.data, isProcessing: true));
-    await _mockSubmitDecision(requestId, approved: true, message: null);
+    emit(EngineeringManagerApprovalsLoaded(current.data,
+        processingId: requestId));
+    await Future.delayed(const Duration(milliseconds: 450));
+    PendingRequestsRepository.instance.approve(requestId);
 
-    final remaining = current.data.pending.where((r) => r.id != requestId).toList();
-    emit(EngineeringManagerApprovalsLoaded(EngineeringManagerApprovalsData(pending: remaining)));
+    final latest = state;
+    if (latest is EngineeringManagerApprovalsLoaded) {
+      emit(EngineeringManagerApprovalsLoaded(latest.data));
+    }
   }
 
-  Future<void> reject(String requestId, String message) async {
+  Future<void> reject(String requestId, String reason) async {
+    if (reason.trim().isEmpty) return;
     final current = state;
     if (current is! EngineeringManagerApprovalsLoaded) return;
 
-    emit(EngineeringManagerApprovalsLoaded(current.data, isProcessing: true));
-    await _mockSubmitDecision(requestId, approved: false, message: message);
+    emit(EngineeringManagerApprovalsLoaded(current.data,
+        processingId: requestId));
+    await Future.delayed(const Duration(milliseconds: 450));
+    PendingRequestsRepository.instance.reject(requestId, reason.trim());
 
-    final remaining = current.data.pending.where((r) => r.id != requestId).toList();
-    emit(EngineeringManagerApprovalsLoaded(EngineeringManagerApprovalsData(pending: remaining)));
+    final latest = state;
+    if (latest is EngineeringManagerApprovalsLoaded) {
+      emit(EngineeringManagerApprovalsLoaded(latest.data));
+    }
   }
 
-  Future<List<ApprovalRequest>> _mockFetchApprovals() async {
-    await Future.delayed(const Duration(milliseconds: 700));
-    return const [
-      ApprovalRequest(
-        id: 'req-1',
-        requesterName: 'Sara Menon',
-        requesterInitials: 'SM',
-        type: ApprovalType.timeOff,
-        detail: 'Aug 18 – Aug 22 (5 days)',
-        submittedAgo: '3h ago',
-      ),
-      ApprovalRequest(
-        id: 'req-2',
-        requesterName: 'Rohan Verma',
-        requesterInitials: 'RV',
-        type: ApprovalType.toolAccess,
-        detail: 'Production database read access',
-        submittedAgo: '6h ago',
-      ),
-      ApprovalRequest(
-        id: 'req-3',
-        requesterName: 'Neha Patil',
-        requesterInitials: 'NP',
-        type: ApprovalType.expense,
-        detail: 'Conference ticket, \u20B912,500',
-        submittedAgo: '1d ago',
-      ),
-      ApprovalRequest(
-        id: 'req-4',
-        requesterName: 'Arjun Kapoor',
-        requesterInitials: 'AK',
-        type: ApprovalType.resourceRequest,
-        detail: 'Additional staging environment',
-        submittedAgo: '2d ago',
-      ),
-    ];
-  }
-
-  Future<void> _mockSubmitDecision(
-    String requestId, {
-    required bool approved,
-    required String? message,
-  }) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+  @override
+  Future<void> close() {
+    _sub.cancel();
+    return super.close();
   }
 }

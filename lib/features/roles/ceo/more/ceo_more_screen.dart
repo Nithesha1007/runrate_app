@@ -2,28 +2,48 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:runrate/features/roles/ceo/ceo_reports_screen.dart';
+import 'package:runrate/features/roles/ceo/more/ceo_blog_insight_screen.dart';
+
+import 'package:runrate/features/roles/ceo/more/ceo_helpsupport_screen.dart';
+import 'package:runrate/features/roles/ceo/more/ceo_report_centre_screen.dart';
+import 'package:runrate/features/roles/ceo/more/ceo_security_screen.dart';
+
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/routes/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_colors_data.dart';
+
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/theme_cubit.dart';
 import '../../../../shared/widgets/toast.dart';
+import 'ceo_board_reports_screen.dart';
 
-/// CEO · More — profile (with role/org + photo upload), theme + notification
-/// preferences, account & security, reports, help & support, and logout.
+import 'ceo_profile_edit_screen.dart';
+
+import 'profile_cubit.dart';
+
+/// CEO · More — profile (with role/org + photo upload, now backed by the
+/// shared ProfileCubit), theme + notification preferences, account &
+/// security, reports, help & support, and logout.
+///
+/// VISUAL UPDATE: screen background is now a soft tinted off-white
+/// (`colors.background`, e.g. 0xFFF6F7FB) instead of pure white, cards sit
+/// on elevated white surfaces with soft shadows instead of flat borders,
+/// and every `_IconBadge` uses a subtle gradient + colored drop-shadow so
+/// icons read with more depth instead of flat low-alpha tint chips.
 ///
 /// NOTE ON ThemeCubit: this screen assumes `ThemeCubit extends
 /// Cubit<ThemeMode>` exposing a `toggle()` method and is already provided
 /// above this screen in the widget tree. If your actual ThemeCubit's API
 /// differs, only `_ThemeToggleTile` below needs to change.
 ///
+/// NOTE ON ProfileCubit: assumed provided above this screen in the widget
+/// tree (same level as ThemeCubit), hydrated on app start and populated on
+/// login. See profile_cubit.dart.
+///
 /// NOTE ON IMAGE UPLOAD: uses `image_picker` for gallery/camera selection.
-/// Add `image_picker: ^1.0.0` to pubspec.yaml if not already present. The
-/// picked file is only held in local state here — wire `_onImagePicked` in
-/// `_ProfileHeroCard` to your upload/repository call when ready.
+/// The picked file is only held in local state here for the hero preview —
+/// the actual profile photo edit flow now lives in CeoProfileEditScreen,
+/// which is the source of truth that persists via ProfileCubit.
 class CeoMoreScreen extends StatelessWidget {
   const CeoMoreScreen({super.key});
 
@@ -31,6 +51,8 @@ class CeoMoreScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     return Scaffold(
+      // Soft tinted background instead of pure white — this is what makes
+      // the elevated white cards below actually read as "elevated".
       backgroundColor: colors.background,
       body: SafeArea(
         child: ListView(
@@ -45,8 +67,8 @@ class CeoMoreScreen extends StatelessWidget {
             _Staggered(
               index: 0,
               child: _ProfileHeroCard(
-                onEdit: () =>
-                    Navigator.of(context).pushNamed(RouteNames.profile),
+                onEdit: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const CeoProfileEditScreen())),
               ),
             ),
             const SizedBox(height: AppSpacing.xxl),
@@ -77,8 +99,8 @@ class CeoMoreScreen extends StatelessWidget {
                   icon: Icons.lock_rounded,
                   label: 'Security Settings',
                   accent: colors.info,
-                  onTap: () =>
-                      Navigator.of(context).pushNamed(RouteNames.security),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const CeoSecuritySettingsScreen())),
                 ),
               ]),
             ),
@@ -93,14 +115,14 @@ class CeoMoreScreen extends StatelessWidget {
                   label: 'Report Center',
                   accent: colors.secondary,
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const CeoReportsScreen())),
+                      builder: (_) => const CeoReportCenterScreen())),
                 ),
                 _MoreTile(
                   icon: Icons.slideshow_rounded,
                   label: 'Board Reports',
                   accent: const Color(0xFF9B51E0),
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const CeoReportsScreen())),
+                      builder: (_) => const CeoBoardReportsScreen())),
                 ),
                 _MoreTile(
                   icon: Icons.shield_rounded,
@@ -119,8 +141,8 @@ class CeoMoreScreen extends StatelessWidget {
                   icon: Icons.article_rounded,
                   label: 'Blog & Insights',
                   accent: colors.warning,
-                  onTap: () =>
-                      showAppToast(context, 'Opening Blog & Insights...'),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const CeoBlogInsightsScreen())),
                 ),
               ]),
             ),
@@ -134,25 +156,15 @@ class CeoMoreScreen extends StatelessWidget {
                   icon: Icons.support_agent_rounded,
                   label: 'Contact Support',
                   accent: colors.primary,
-                  onTap: () => _showInfoDialog(
-                    context,
-                    title: 'Contact Support',
-                    body:
-                        'Reach the support team any time at support@acmecorp.com — '
-                        'we typically respond within one business day.',
-                  ),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const CeoHelpSupportScreen())),
                 ),
                 _MoreTile(
                   icon: Icons.help_outline_rounded,
                   label: 'FAQ',
                   accent: colors.info,
-                  onTap: () => _showInfoDialog(
-                    context,
-                    title: 'FAQ',
-                    body:
-                        'Find answers to common questions about approvals, budgets, '
-                        'and the AI Copilot in the Help Center.',
-                  ),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const CeoHelpSupportScreen())),
                 ),
               ]),
             ),
@@ -247,8 +259,10 @@ class CeoMoreScreen extends StatelessWidget {
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: colors.danger),
-            onPressed: () {
+            onPressed: () async {
               Navigator.of(dialogContext).pop();
+              await context.read<ProfileCubit>().clear();
+              if (!context.mounted) return;
               Navigator.of(context)
                   .pushNamedAndRemoveUntil(RouteNames.login, (route) => false);
             },
@@ -329,98 +343,24 @@ class _SectionLabel extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// PROFILE HERO — gradient card with avatar (tap to upload/change photo),
-// name, role, and organization. Matches the Home/Teams/Approvals hero style.
+// PROFILE HERO — gradient card with avatar, name, role, and organization.
+// Reads from the shared ProfileCubit instead of hardcoded constants, so it
+// reflects login data and any edits made in CeoProfileEditScreen without a
+// full app reload. Kept as a rich gradient card since it's the visual
+// anchor of the screen (unchanged in intent from before).
 // ---------------------------------------------------------------------------
-class _ProfileHeroCard extends StatefulWidget {
+class _ProfileHeroCard extends StatelessWidget {
   const _ProfileHeroCard({required this.onEdit});
   final VoidCallback onEdit;
 
   @override
-  State<_ProfileHeroCard> createState() => _ProfileHeroCardState();
-}
-
-class _ProfileHeroCardState extends State<_ProfileHeroCard> {
-  File? _pickedImage;
-  bool _picking = false;
-
-  Future<void> _openImageSourceSheet() async {
-    final colors = AppColors.of(context);
-    final source = await showModalBottomSheet<ImageSource?>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => Container(
-        decoration: BoxDecoration(
-          color: colors.background,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.fromLTRB(
-            AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: AppSpacing.lg),
-              decoration: BoxDecoration(
-                color: colors.border,
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-            Text('Update profile photo',
-                style: AppTypography.h3(colors.textPrimary)),
-            const SizedBox(height: AppSpacing.lg),
-            _SheetOption(
-              icon: Icons.photo_camera_rounded,
-              label: 'Take a photo',
-              onTap: () => Navigator.of(sheetContext).pop(ImageSource.camera),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            _SheetOption(
-              icon: Icons.photo_library_rounded,
-              label: 'Choose from gallery',
-              onTap: () => Navigator.of(sheetContext).pop(ImageSource.gallery),
-            ),
-            if (_pickedImage != null) ...[
-              const SizedBox(height: AppSpacing.sm),
-              _SheetOption(
-                icon: Icons.delete_outline_rounded,
-                label: 'Remove photo',
-                isDestructive: true,
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  setState(() => _pickedImage = null);
-                },
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-
-    if (source == null) return;
-
-    setState(() => _picking = true);
-    try {
-      final picker = ImagePicker();
-      final file = await picker.pickImage(source: source, imageQuality: 85);
-      if (file != null && mounted) {
-        setState(() => _pickedImage = File(file.path));
-        // TODO: upload `_pickedImage` via your profile repository/API here.
-        if (mounted) showAppToast(context, 'Profile photo updated');
-      }
-    } finally {
-      if (mounted) setState(() => _picking = false);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    const name = 'Jordan Lee';
-    const role = 'CEO';
-    const organization = 'Acme Corp';
+    final profile = context.watch<ProfileCubit>().state;
+    final name = profile.name.isEmpty ? 'Your Name' : profile.name;
+    final role = profile.role.isEmpty ? 'CEO' : profile.role;
+    final organization =
+        profile.organization.isEmpty ? 'Your Organization' : profile.organization;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(28),
@@ -437,70 +377,40 @@ class _ProfileHeroCardState extends State<_ProfileHeroCard> {
               colors.primary.withValues(alpha: 0.85),
             ],
           ),
+          boxShadow: [
+            BoxShadow(
+              color: colors.primary.withValues(alpha: 0.28),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            _ScaleOnTap(
-              onTap: _picking ? () {} : _openImageSourceSheet,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.6),
-                          width: 2),
-                      color: Colors.white.withValues(alpha: 0.16),
-                      image: _pickedImage != null
-                          ? DecorationImage(
-                              image: FileImage(_pickedImage!),
-                              fit: BoxFit.cover,
-                            )
-                          : null,
-                    ),
-                    alignment: Alignment.center,
-                    child: _picking
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.4,
-                              valueColor:
-                                  AlwaysStoppedAnimation(Colors.white),
-                            ),
-                          )
-                        : (_pickedImage == null
-                            ? Text(
-                                name
-                                    .split(' ')
-                                    .map((e) => e.isNotEmpty ? e[0] : '')
-                                    .take(2)
-                                    .join()
-                                    .toUpperCase(),
-                                style: AppTypography.h2(Colors.white),
-                              )
-                            : null),
-                  ),
-                  Positioned(
-                    bottom: -2,
-                    right: -2,
-                    child: Container(
-                      width: 26,
-                      height: 26,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: colors.background,
-                        border: Border.all(color: colors.primary, width: 1.6),
-                      ),
-                      child: Icon(Icons.camera_alt_rounded,
-                          size: 13, color: colors.primary),
-                    ),
-                  ),
-                ],
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border:
+                    Border.all(color: Colors.white.withValues(alpha: 0.6), width: 2),
+                color: Colors.white.withValues(alpha: 0.16),
+                image: (profile.avatarUrl != null &&
+                        profile.avatarUrl!.isNotEmpty)
+                    ? DecorationImage(
+                        image: profile.avatarUrl!.startsWith('http')
+                            ? NetworkImage(profile.avatarUrl!)
+                                as ImageProvider
+                            : FileImage(File(profile.avatarUrl!)),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
               ),
+              alignment: Alignment.center,
+              child: (profile.avatarUrl == null || profile.avatarUrl!.isEmpty)
+                  ? Text(profile.initials.isEmpty ? '?' : profile.initials,
+                      style: AppTypography.h2(Colors.white))
+                  : null,
             ),
             const SizedBox(width: AppSpacing.lg),
             Expanded(
@@ -524,7 +434,7 @@ class _ProfileHeroCardState extends State<_ProfileHeroCard> {
               ),
             ),
             _ScaleOnTap(
-              onTap: widget.onEdit,
+              onTap: onEdit,
               child: Container(
                 padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.md, vertical: AppSpacing.sm),
@@ -562,48 +472,6 @@ class _RolePill extends StatelessWidget {
       child: Text(label,
           style: AppTypography.caption(Colors.white)
               .copyWith(fontWeight: FontWeight.w600)),
-    );
-  }
-}
-
-class _SheetOption extends StatelessWidget {
-  const _SheetOption({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.isDestructive = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final bool isDestructive;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    final color = isDestructive ? colors.danger : colors.textPrimary;
-    return _ScaleOnTap(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md, vertical: AppSpacing.md),
-        decoration: BoxDecoration(
-          color: colors.surfaceElevated,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.border),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(width: AppSpacing.md),
-            Text(label,
-                style: AppTypography.body(color)
-                    .copyWith(fontWeight: FontWeight.w600)),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -783,8 +651,12 @@ class _TwoFactorTileState extends State<_TwoFactorTile> {
 }
 
 // ---------------------------------------------------------------------------
-// SHARED SHELL + TILE — every settings row now has a colored icon badge
-// (from the app's accent palette) instead of a flat default-color icon.
+// SHARED SHELL + TILE
+//
+// VISUAL UPDATE: both _CardShell and _TileGroup now sit on a plain white
+// (`colors.surfaceElevated`) surface with a soft drop shadow instead of a
+// flat 1px border on a white-on-white background — this is what gives the
+// "premium" elevated look against the tinted screen background above.
 // ---------------------------------------------------------------------------
 class _CardShell extends StatelessWidget {
   const _CardShell({required this.child});
@@ -798,7 +670,13 @@ class _CardShell extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surfaceElevated,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: child,
     );
@@ -816,7 +694,13 @@ class _TileGroup extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surfaceElevated,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md, vertical: AppSpacing.xs),
@@ -833,6 +717,10 @@ class _TileGroup extends StatelessWidget {
   }
 }
 
+/// VISUAL UPDATE: instead of a flat single-alpha tint chip, each badge now
+/// uses a subtle diagonal gradient (darker → lighter tint of the accent
+/// color) plus a matching soft colored drop-shadow. This is what gives
+/// icons visible depth instead of looking like flat pastel squares.
 class _IconBadge extends StatelessWidget {
   const _IconBadge({required this.icon, required this.color, this.size = 38});
   final IconData icon;
@@ -845,8 +733,22 @@ class _IconBadge extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withValues(alpha: 0.24),
+            color.withValues(alpha: 0.12),
+          ],
+        ),
         borderRadius: BorderRadius.circular(size * 0.32),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.20),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Icon(icon, color: color, size: size * 0.5),
     );

@@ -61,11 +61,15 @@ class TeamMember {
   final String name;
   final String role;
   final String department;
+  final double aiSpend;
+  final int toolsUsed;
 
   const TeamMember({
     required this.id,
     required this.name,
     required this.role,
     required this.department,
+    required this.aiSpend,
+    required this.toolsUsed,
   });
 }

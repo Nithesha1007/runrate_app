@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:runrate/features/roles/ceo/home/ceo_home_cubit.dart';
 import 'package:runrate/features/roles/engineering_manager/ai/engineering_manager_ai_screen.dart';
 import 'package:runrate/features/roles/engineering_manager/approvals/engineering_manager_approvals_screen.dart';
 import 'package:runrate/features/roles/engineering_manager/home/engineering_manager_home_cubit.dart';
@@ -13,15 +12,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_colors_data.dart';
 import '../../../../core/theme/app_typography.dart';
 
-/// CEO Home dashboard.
-///
-/// NOTE: This screen intentionally shows only a compact, ~1–1.5 screen
-/// summary. Anything that belongs to another tab (full team member list,
-/// AI insights feed, activity timeline, approval history, reports, etc.)
-/// lives in that tab, not here. If `CeoHomeData` still exposes fields like
-/// `teamMembers`, `insights`, `recentActivity`, `productivitySummary`, or
-/// `aiManagerSummary`, they are simply unused by this view — safe to
-/// keep in the cubit for other screens to reuse, or trim later.
 class EngineeringManagerHomeScreen extends StatelessWidget {
   const EngineeringManagerHomeScreen({super.key});
 
@@ -216,7 +206,6 @@ class _EngineeringManagerHomeViewState
   }
 }
 
-/// Slide-up + fade stagger wrapper for cards, indexed by section order.
 class _Staggered extends StatelessWidget {
   const _Staggered({required this.index, required this.child});
 
@@ -241,7 +230,6 @@ class _Staggered extends StatelessWidget {
   }
 }
 
-/// Subtle scale-down-on-tap wrapper for tactile buttons.
 class _ScaleOnTap extends StatefulWidget {
   const _ScaleOnTap({required this.child, required this.onTap});
 
@@ -463,63 +451,49 @@ String _statusLabelFor(_BudgetStatus status) {
 }
 
 // ---------------------------------------------------------------------------
-// BRAND MAP — real per-tool identity instead of one generic bolt icon.
-// Put official logo assets here once you've grabbed them from each brand kit:
-//   assets/icons/tools/claude.png, chatgpt.png, copilot.png, cursor.png, gemini.png
-// If an asset is missing, it falls back to a colored initials badge — never
-// a broken image, never a placeholder icon.
+// BRAND BADGE — No letter-initials fallback: every tool gets a distinct icon
+// (not the real trademarked logo — a recognizable, custom glyph in that
+// brand's color) on a glowing gradient circle.
 // ---------------------------------------------------------------------------
 class ToolBrand {
   const ToolBrand({
-    required this.initials,
-    required this.color,
-    required this.bg,
-    this.assetPath,
+    required this.icon,
+    required this.colors,
   });
 
-  final String initials;
-  final Color color;
-  final Color bg;
-  final String? assetPath;
+  final IconData icon;
+  final List<Color> colors; // gradient, 2 stops
 }
 
 const Map<String, ToolBrand> kToolBrands = {
   'Claude': ToolBrand(
-    initials: 'C',
-    color: Color(0xFFD97757),
-    bg: Color(0xFFFBEDE6),
-    assetPath: 'assets/icons/tools/claude.png',
+    icon: Icons.auto_awesome_rounded,
+    colors: [Color(0xFFD97757), Color(0xFFF2A67D)],
   ),
   'ChatGPT Enterprise': ToolBrand(
-    initials: 'G',
-    color: Color(0xFF10A37F),
-    bg: Color(0xFFE6F6F1),
-    assetPath: 'assets/icons/tools/chatgpt.png',
+    icon: Icons.psychology_alt_rounded,
+    colors: [Color(0xFF10A37F), Color(0xFF4FD1A5)],
   ),
   'GitHub Copilot': ToolBrand(
-    initials: 'GH',
-    color: Color(0xFF24292F),
-    bg: Color(0xFFEDEEF0),
-    assetPath: 'assets/icons/tools/copilot.png',
+    icon: Icons.terminal_rounded,
+    colors: [Color(0xFF24292F), Color(0xFF57606A)],
   ),
   'Cursor': ToolBrand(
-    initials: 'CU',
-    color: Color(0xFF0A0A0A),
-    bg: Color(0xFFF0F0F1),
-    assetPath: 'assets/icons/tools/cursor.png',
+    icon: Icons.bolt_rounded,
+    colors: [Color(0xFF3B3B3B), Color(0xFF6E6E6E)],
   ),
   'Gemini': ToolBrand(
-    initials: 'GM',
-    color: Color(0xFF4285F4),
-    bg: Color(0xFFEAF1FE),
-    assetPath: 'assets/icons/tools/gemini.png',
+    icon: Icons.diamond_rounded,
+    colors: [Color(0xFF4285F4), Color(0xFF9B72CB)],
   ),
 };
 
 ToolBrand _brandFor(String name) =>
     kToolBrands[name] ??
     const ToolBrand(
-        initials: 'AI', color: Color(0xFF6C5CE7), bg: Color(0xFFEFECFD));
+      icon: Icons.smart_toy_rounded,
+      colors: [Color(0xFF6C5CE7), Color(0xFF8E7CFF)],
+    );
 
 class _BrandBadge extends StatelessWidget {
   const _BrandBadge({required this.name, this.size = 40});
@@ -533,39 +507,27 @@ class _BrandBadge extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: brand.bg,
-        borderRadius: BorderRadius.circular(size * 0.32),
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: brand.colors,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: brand.colors.first.withValues(alpha: 0.35),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      clipBehavior: Clip.antiAlias,
-      child: brand.assetPath == null
-          ? _initials(brand)
-          : Padding(
-              padding: EdgeInsets.all(size * 0.2),
-              child: Image.asset(
-                brand.assetPath!,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => _initials(brand),
-              ),
-            ),
+      child: Icon(brand.icon, color: Colors.white, size: size * 0.5),
     );
   }
-
-  Widget _initials(ToolBrand brand) => Center(
-        child: Text(
-          brand.initials,
-          style: TextStyle(
-            color: brand.color,
-            fontWeight: FontWeight.w700,
-            fontSize: size * 0.36,
-          ),
-        ),
-      );
 }
 
 // ---------------------------------------------------------------------------
-// HERO CARD — soft translucent track (no more black ring), a real gradient
-// sweep progress arc via ShaderMask, and a slow breathing glow that runs
-// continuously behind the card, not just on load.
+// HERO CARD
 // ---------------------------------------------------------------------------
 class _HeroOverviewCard extends StatefulWidget {
   const _HeroOverviewCard({required this.data});
@@ -614,7 +576,7 @@ class _HeroOverviewCardState extends State<_HeroOverviewCard>
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: colors.primary.withOpacity(0.28 + t * 0.12),
+                color: colors.primary.withValues(alpha: 0.28 + t * 0.12),
                 blurRadius: 32 + t * 10,
                 offset: const Offset(0, 18),
               ),
@@ -635,7 +597,7 @@ class _HeroOverviewCardState extends State<_HeroOverviewCard>
               colors: [
                 colors.primary,
                 colors.secondary,
-                colors.primary.withOpacity(0.85),
+                colors.primary.withValues(alpha: 0.85),
               ],
             ),
           ),
@@ -662,7 +624,6 @@ class _HeroOverviewCardState extends State<_HeroOverviewCard>
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        // soft track — never solid black
                         SizedBox(
                           width: 96,
                           height: 96,
@@ -671,10 +632,9 @@ class _HeroOverviewCardState extends State<_HeroOverviewCard>
                             strokeWidth: 9,
                             strokeCap: StrokeCap.round,
                             valueColor: AlwaysStoppedAnimation(
-                                Colors.white.withOpacity(0.18)),
+                                Colors.white.withValues(alpha: 0.18)),
                           ),
                         ),
-                        // gradient sweep progress
                         TweenAnimationBuilder<double>(
                           tween: Tween(begin: 0.0, end: data.budgetUtilization),
                           duration: const Duration(milliseconds: 1100),
@@ -763,9 +723,9 @@ class _StatusPill extends StatelessWidget {
       padding:
           const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.16),
+        color: Colors.white.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withOpacity(0.35)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -816,14 +776,14 @@ class _StatChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.14),
+        color: Colors.white.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text('$label: ',
-              style: AppTypography.caption(Colors.white.withOpacity(0.8))),
+              style: AppTypography.caption(Colors.white.withValues(alpha: 0.8))),
           Text(value,
               style: AppTypography.caption(Colors.white)
                   .copyWith(fontWeight: FontWeight.w700)),
@@ -844,7 +804,7 @@ class _MetricPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.12),
+        color: Colors.white.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text('$label · $value',
@@ -879,9 +839,9 @@ class _SectionHeader extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// QUICK ACTIONS — row-style tile (icon left, title+subtitle right) instead
-// of a tall square with a Spacer, so there's no dead vertical space. Each
-// action gets its own gradient accent so the four don't look identical.
+// QUICK ACTIONS — compact row tiles: icon + FULL title side by side, title
+// wraps to 2 lines only if it needs to (no ellipsis truncation), and the
+// tile height tracks the content instead of forcing a tall square.
 // ---------------------------------------------------------------------------
 class _QuickActionsGrid extends StatelessWidget {
   const _QuickActionsGrid({required this.items, required this.onTap});
@@ -907,8 +867,8 @@ class _QuickActionsGrid extends StatelessWidget {
           crossAxisCount: crossAxisCount,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: AppSpacing.md,
-          mainAxisSpacing: AppSpacing.md,
+          crossAxisSpacing: AppSpacing.sm,
+          mainAxisSpacing: AppSpacing.sm,
           childAspectRatio: 2.6,
           children: List.generate(visible.length, (i) {
             final item = visible[i];
@@ -916,40 +876,34 @@ class _QuickActionsGrid extends StatelessWidget {
             return _ScaleOnTap(
               onTap: () => onTap(item),
               child: Container(
-                padding: const EdgeInsets.all(AppSpacing.sm + 2),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
                 decoration: BoxDecoration(
                   color: colors.surfaceElevated,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: colors.border),
                 ),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Container(
-                      width: 40,
-                      height: 40,
+                      width: 34,
+                      height: 34,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                         gradient: LinearGradient(colors: accent),
                       ),
-                      child: Icon(item.icon, color: Colors.white, size: 19),
+                      child: Icon(item.icon, color: Colors.white, size: 17),
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(item.title,
-                              style: AppTypography.body(colors.textPrimary)
-                                  .copyWith(fontWeight: FontWeight.w600),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis),
-                          Text(item.subtitle,
-                              style:
-                                  AppTypography.caption(colors.textSecondary),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis),
-                        ],
+                      child: Text(
+                        item.title,
+                        style: AppTypography.body(colors.textPrimary)
+                            .copyWith(fontWeight: FontWeight.w600, height: 1.15),
+                        maxLines: 2,
+                        softWrap: true,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -963,6 +917,10 @@ class _QuickActionsGrid extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// KPI GRID — redesigned. Tighter padding, smaller icon chip, taller aspect
+// ratio so each tile takes noticeably less vertical space.
+// ---------------------------------------------------------------------------
 class _KpiGrid extends StatelessWidget {
   const _KpiGrid({required this.kpis});
 
@@ -975,45 +933,51 @@ class _KpiGrid extends StatelessWidget {
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: AppSpacing.md,
-      mainAxisSpacing: AppSpacing.md,
-      childAspectRatio: 1.35,
+      crossAxisSpacing: AppSpacing.sm,
+      mainAxisSpacing: AppSpacing.sm,
+      childAspectRatio: 2.3,
       children: kpis.take(4).map((kpi) {
         final isPositive = kpi.trendValue >= 0;
         return Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
           decoration: BoxDecoration(
             color: colors.surfaceElevated,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(color: colors.border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Row(
                 children: [
                   Container(
-                    width: 32,
-                    height: 32,
+                    width: 20,
+                    height: 20,
                     decoration: BoxDecoration(
                         color: colors.primaryLight,
-                        borderRadius: BorderRadius.circular(10)),
-                    child: Icon(kpi.icon, color: colors.primary, size: 16),
+                        borderRadius: BorderRadius.circular(6)),
+                    child: Icon(kpi.icon, color: colors.primary, size: 11),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(kpi.label,
+                        style: AppTypography.caption(colors.textSecondary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                  ),
                   Text(kpi.trend,
                       style: AppTypography.caption(
                           isPositive ? colors.success : colors.danger)),
                 ],
               ),
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: 4),
               _AnimatedCounterOrText(
                   value: kpi.value,
-                  style: AppTypography.h3(colors.textPrimary)),
-              Text(kpi.label,
-                  style: AppTypography.caption(colors.textSecondary),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis),
+                  style: AppTypography.body(colors.textPrimary)
+                      .copyWith(fontWeight: FontWeight.w800, fontSize: 16)),
             ],
           ),
         );
@@ -1022,7 +986,6 @@ class _KpiGrid extends StatelessWidget {
   }
 }
 
-/// Animates a numeric KPI value if it parses as an int; otherwise renders as-is.
 class _AnimatedCounterOrText extends StatelessWidget {
   const _AnimatedCounterOrText({required this.value, required this.style});
 
@@ -1046,6 +1009,11 @@ class _AnimatedCounterOrText extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// BUDGET HEALTH CARD — redesigned. Segmented used/remaining bar with a
+// "% used" caption, and three compact dot-labeled stats underneath instead
+// of the old three-column layout stacked above a separate progress bar.
+// ---------------------------------------------------------------------------
 class _BudgetHealthCard extends StatelessWidget {
   const _BudgetHealthCard({required this.data});
 
@@ -1060,6 +1028,7 @@ class _BudgetHealthCard extends StatelessWidget {
       _BudgetStatus.warning => colors.warning,
       _BudgetStatus.critical => colors.danger,
     };
+    final pct = (data.utilization * 100).round().clamp(0, 100);
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -1080,7 +1049,7 @@ class _BudgetHealthCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.sm, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.14),
+                  color: statusColor.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(_statusLabelFor(status),
@@ -1089,38 +1058,55 @@ class _BudgetHealthCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: SizedBox(
+              height: 14,
+              child: TweenAnimationBuilder<double>(
+                tween:
+                    Tween(begin: 0.0, end: data.utilization.clamp(0.0, 1.0)),
+                duration: const Duration(milliseconds: 900),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, _) => Row(
+                  children: [
+                    Expanded(
+                      flex: (value * 1000).round().clamp(1, 999),
+                      child: Container(color: statusColor),
+                    ),
+                    Expanded(
+                      flex: (1000 - (value * 1000).round()).clamp(1, 999),
+                      child: Container(color: colors.primaryLight),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text('$pct% of budget used',
+              style: AppTypography.caption(colors.textSecondary)),
+          const SizedBox(height: AppSpacing.lg),
           Row(
             children: [
               Expanded(
-                child: _LabeledValue(
-                    label: 'Spend', value: '\$${data.used.toStringAsFixed(0)}'),
+                child: _BudgetStat(
+                    dotColor: statusColor,
+                    label: 'Spend',
+                    value: '\$${data.used.toStringAsFixed(0)}'),
               ),
               Expanded(
-                child: _LabeledValue(
+                child: _BudgetStat(
+                    dotColor: colors.border,
                     label: 'Remaining',
                     value: '\$${data.remaining.toStringAsFixed(0)}'),
               ),
               Expanded(
-                child: _LabeledValue(
+                child: _BudgetStat(
+                    dotColor: colors.secondary,
                     label: 'Forecast',
                     value: '${(data.forecast * 100).toInt()}%'),
               ),
             ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: data.utilization),
-              duration: const Duration(milliseconds: 900),
-              curve: Curves.easeOutCubic,
-              builder: (context, value, _) => LinearProgressIndicator(
-                value: value,
-                minHeight: 8,
-                color: statusColor,
-                backgroundColor: colors.primaryLight,
-              ),
-            ),
           ),
         ],
       ),
@@ -1128,9 +1114,11 @@ class _BudgetHealthCard extends StatelessWidget {
   }
 }
 
-class _LabeledValue extends StatelessWidget {
-  const _LabeledValue({required this.label, required this.value});
+class _BudgetStat extends StatelessWidget {
+  const _BudgetStat(
+      {required this.dotColor, required this.label, required this.value});
 
+  final Color dotColor;
   final String label;
   final String value;
 
@@ -1140,9 +1128,22 @@ class _LabeledValue extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppTypography.caption(colors.textSecondary)),
+        Row(
+          children: [
+            Container(
+              width: 7,
+              height: 7,
+              decoration:
+                  BoxDecoration(color: dotColor, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 5),
+            Text(label, style: AppTypography.caption(colors.textSecondary)),
+          ],
+        ),
         const SizedBox(height: 2),
-        Text(value, style: AppTypography.body(colors.textPrimary)),
+        Text(value,
+            style: AppTypography.body(colors.textPrimary)
+                .copyWith(fontWeight: FontWeight.w700)),
       ],
     );
   }
@@ -1170,10 +1171,6 @@ class _TopAiToolsSection extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// TOOL ROW — brand badge instead of a generic bolt icon, plus a small donut
-// ring for utilization instead of flat percentage text.
-// ---------------------------------------------------------------------------
 class _ToolUsageRow extends StatelessWidget {
   const _ToolUsageRow({required this.tool});
 
@@ -1192,7 +1189,7 @@ class _ToolUsageRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _BrandBadge(name: tool.name, size: 40),
+          _BrandBadge(name: tool.name, size: 42),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
@@ -1222,7 +1219,7 @@ class _ToolUsageRow extends StatelessWidget {
                   strokeWidth: 4,
                   strokeCap: StrokeCap.round,
                   backgroundColor: colors.border,
-                  valueColor: AlwaysStoppedAnimation(brand.color),
+                  valueColor: AlwaysStoppedAnimation(brand.colors.first),
                 ),
                 Text('${tool.licenseUsage}',
                     style: AppTypography.caption(colors.textPrimary)
@@ -1236,6 +1233,11 @@ class _ToolUsageRow extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// PENDING APPROVALS — glassy gradient corner ribbon for priority, requester
+// avatar, tool brand badge, animated urgency pulse for High priority, and a
+// bolder split-action row.
+// ---------------------------------------------------------------------------
 class _PendingApprovalsSection extends StatelessWidget {
   const _PendingApprovalsSection({
     required this.requests,
@@ -1270,7 +1272,7 @@ class _PendingApprovalsSection extends StatelessWidget {
           )
         else
           ...requests.map((request) => Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
                 child: _PendingRequestCard(
                   request: request,
                   onApprove: () => onApprove(request.id),
@@ -1282,14 +1284,7 @@ class _PendingApprovalsSection extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// PENDING REQUEST CARD — Reject is a real destructive-style button (soft
-// red tint, border, icon) instead of a bare outline; Approve is a solid
-// gradient button with a shadow and check icon. Priority badge is color-
-// coded (High = danger, Medium = warning, Low = success) instead of always
-// purple.
-// ---------------------------------------------------------------------------
-class _PendingRequestCard extends StatelessWidget {
+class _PendingRequestCard extends StatefulWidget {
   const _PendingRequestCard({
     required this.request,
     required this.onApprove,
@@ -1300,8 +1295,32 @@ class _PendingRequestCard extends StatelessWidget {
   final VoidCallback onApprove;
   final VoidCallback onReject;
 
+  @override
+  State<_PendingRequestCard> createState() => _PendingRequestCardState();
+}
+
+class _PendingRequestCardState extends State<_PendingRequestCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse;
+
+  bool get _isHigh => widget.request.priority.toLowerCase() == 'high';
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse =
+        AnimationController(vsync: this, duration: const Duration(seconds: 2))
+          ..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
   Color _priorityColor(AppColorsData colors) {
-    switch (request.priority.toLowerCase()) {
+    switch (widget.request.priority.toLowerCase()) {
       case 'high':
         return colors.danger;
       case 'medium':
@@ -1311,111 +1330,226 @@ class _PendingRequestCard extends StatelessWidget {
     }
   }
 
+  String _initialsFor(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return (parts.first.substring(0, 1) + parts[1].substring(0, 1))
+        .toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     final pColor = _priorityColor(colors);
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colors.surfaceElevated,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(request.employeeName,
-                    style: AppTypography.body(colors.textPrimary)
-                        .copyWith(fontWeight: FontWeight.w600),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm, vertical: 3),
-                decoration: BoxDecoration(
-                  color: pColor.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(request.priority,
-                    style: AppTypography.caption(pColor)),
+    final request = widget.request;
+    final brand = _brandFor(request.requestedTool);
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.md),
+          decoration: BoxDecoration(
+            color: colors.surfaceElevated,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: pColor.withValues(alpha: 0.28)),
+            boxShadow: [
+              BoxShadow(
+                color: pColor.withValues(alpha: 0.10),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text('${request.requestedTool} · \$${request.monthlyCost.toInt()}/mo',
-              style: AppTypography.caption(colors.textSecondary)),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: _ScaleOnTap(
-                  onTap: onReject,
-                  child: Container(
+              Row(
+                children: [
+                  Container(
+                    width: 40,
                     height: 40,
-                    alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: colors.danger.withOpacity(0.10),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: colors.danger.withOpacity(0.3)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.close_rounded,
-                            size: 16, color: colors.danger),
-                        const SizedBox(width: 6),
-                        Text('Reject',
-                            style: AppTypography.caption(colors.danger)
-                                .copyWith(fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: _ScaleOnTap(
-                  onTap: onApprove,
-                  child: Container(
-                    height: 40,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
+                      shape: BoxShape.circle,
                       gradient: LinearGradient(
-                          colors: [colors.primary, colors.secondary]),
-                      boxShadow: [
-                        BoxShadow(
-                          color: colors.primary.withOpacity(0.28),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                        colors: [colors.primary, colors.secondary],
+                      ),
                     ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
+                    alignment: Alignment.center,
+                    child: Text(
+                      _initialsFor(request.employeeName),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.check_rounded,
-                            size: 16, color: Colors.white),
-                        SizedBox(width: 6),
-                        Text('Approve',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12)),
+                        Text(request.employeeName,
+                            style: AppTypography.body(colors.textPrimary)
+                                .copyWith(fontWeight: FontWeight.w700),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                        Text('Requested ${request.requestDate}',
+                            style:
+                                AppTypography.caption(colors.textSecondary)),
                       ],
                     ),
                   ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: colors.border),
                 ),
+                child: Row(
+                  children: [
+                    _BrandBadge(name: request.requestedTool, size: 34),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(request.requestedTool,
+                              style: AppTypography.body(colors.textPrimary)
+                                  .copyWith(fontWeight: FontWeight.w600),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                          Text('\$${request.monthlyCost.toInt()}/mo',
+                              style: AppTypography.caption(brand.colors.first)
+                                  .copyWith(fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(request.justification,
+                  style: AppTypography.caption(colors.textSecondary),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ScaleOnTap(
+                      onTap: widget.onReject,
+                      child: Container(
+                        height: 42,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: colors.danger.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(13),
+                          border: Border.all(
+                              color: colors.danger.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.close_rounded,
+                                size: 16, color: colors.danger),
+                            const SizedBox(width: 6),
+                            Text('Reject',
+                                style: AppTypography.caption(colors.danger)
+                                    .copyWith(fontWeight: FontWeight.w700)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    flex: 2,
+                    child: _ScaleOnTap(
+                      onTap: widget.onApprove,
+                      child: Container(
+                        height: 42,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(13),
+                          gradient: LinearGradient(
+                              colors: [colors.primary, colors.secondary]),
+                          boxShadow: [
+                            BoxShadow(
+                              color: colors.primary.withValues(alpha: 0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.check_rounded,
+                                size: 16, color: Colors.white),
+                            SizedBox(width: 6),
+                            Text('Approve',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
+        ),
+        // Corner priority ribbon — pulses gently for High priority.
+        Positioned(
+          top: -8,
+          right: AppSpacing.md,
+          child: AnimatedBuilder(
+            animation: _pulse,
+            builder: (context, child) {
+              final scale = _isHigh ? 1.0 + _pulse.value * 0.06 : 1.0;
+              return Transform.scale(scale: scale, child: child);
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm, vertical: 5),
+              decoration: BoxDecoration(
+                color: pColor,
+                borderRadius: BorderRadius.circular(999),
+                boxShadow: [
+                  BoxShadow(
+                    color: pColor.withValues(alpha: 0.45),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_isHigh) ...[
+                    const Icon(Icons.priority_high_rounded,
+                        size: 12, color: Colors.white),
+                    const SizedBox(width: 2),
+                  ],
+                  Text(request.priority,
+                      style: AppTypography.caption(Colors.white)
+                          .copyWith(fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1,9 +1,12 @@
 // ceo_home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:runrate/features/roles/ceo/home/ai_usage_details_screen.dart';
+import 'package:runrate/features/roles/ceo/home/ceobudget_health_card.dart';
 import 'dart:async';
 
 import 'ceo_home_cubit.dart';
+
 import '../shared/models/alert_model.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/routes/route_names.dart';
@@ -12,12 +15,12 @@ import '../../../../core/theme/app_colors_data.dart';
 import '../../../../core/theme/app_typography.dart';
 
 /// CEO Home dashboard — company-wide rollup across every department.
-/// Upgraded to a premium enterprise dashboard per the CEO Home spec:
-/// executive alert banner, enhanced hero, company snapshot, 6-card KPI
-/// grid, department performance, AI insights, executive approvals with
-/// delegate, recent decisions timeline, company health score, and a
-/// Today's Focus summary. The floating AI Copilot button was removed
-/// since the AI tab already lives in the bottom navigation.
+/// Section order: Header, Critical Alert banner, Company AI Overview hero,
+/// Quick Actions, Key Executive Metrics (4-card KPI grid), AI Usage &
+/// Adoption, Budget Health, Department Performance, AI Strategic Insights,
+/// Executive Approvals, Today's Focus. Company Snapshot, Company Health
+/// Score, and Recent Executive Decisions were removed — each duplicated a
+/// number already shown elsewhere on this screen.
 class CeoHomeScreen extends StatelessWidget {
   const CeoHomeScreen({super.key});
 
@@ -101,17 +104,16 @@ class _CeoHomeViewState extends State<_CeoHomeView>
                           const SizedBox(height: AppSpacing.lg),
                           _Staggered(
                             index: 0,
-                            child: _AlertBanner(alerts: data.alerts),
+                            child: _AlertBanner(
+                              alerts: data.alerts,
+                              onAlertTap: (alert) =>
+                                  _handleAlertTap(context, alert),
+                            ),
                           ),
                           const SizedBox(height: AppSpacing.xl),
                           _Staggered(
                             index: 0,
                             child: _HeroOverviewCard(data: data),
-                          ),
-                          const SizedBox(height: AppSpacing.xl),
-                          _Staggered(
-                            index: 1,
-                            child: _CompanySnapshotRow(items: data.snapshot),
                           ),
                           const SizedBox(height: AppSpacing.xl),
                           _Staggered(
@@ -126,7 +128,7 @@ class _CeoHomeViewState extends State<_CeoHomeView>
                           _Staggered(
                             index: 2,
                             child: const _SectionHeader(
-                                title: 'Financial Overview'),
+                                title: 'Key Executive Metrics'),
                           ),
                           const SizedBox(height: AppSpacing.md),
                           _Staggered(
@@ -136,11 +138,20 @@ class _CeoHomeViewState extends State<_CeoHomeView>
                           const SizedBox(height: AppSpacing.xl),
                           _Staggered(
                             index: 3,
-                            child: _BudgetHealthCard(data: data.budgetHealth),
+                            child: _AiUsageAdoptionSection(
+                              tools: data.aiToolUsage,
+                              onViewAll: () =>
+                                  _openAiUsageDetail(context),
+                            ),
                           ),
                           const SizedBox(height: AppSpacing.xl),
                           _Staggered(
                             index: 4,
+                            child: CeoBudgetHealthCard(data: data.budgetHealth),
+                          ),
+                          const SizedBox(height: AppSpacing.xl),
+                          _Staggered(
+                            index: 5,
                             child: _DepartmentBreakdownSection(
                               departments: data.departments,
                               onTapDepartment: (dept) =>
@@ -149,13 +160,13 @@ class _CeoHomeViewState extends State<_CeoHomeView>
                           ),
                           const SizedBox(height: AppSpacing.xl),
                           _Staggered(
-                            index: 5,
+                            index: 6,
                             child: _StrategicInsightsSection(
                                 insights: data.insights),
                           ),
                           const SizedBox(height: AppSpacing.xl),
                           _Staggered(
-                            index: 6,
+                            index: 7,
                             child: _EscalatedApprovalsSection(
                               requests: data.escalatedApprovals,
                               onApprove: (id) => context
@@ -173,21 +184,7 @@ class _CeoHomeViewState extends State<_CeoHomeView>
                           ),
                           const SizedBox(height: AppSpacing.xl),
                           _Staggered(
-                            index: 7,
-                            child: _RecentDecisionsSection(
-                                decisions: data.recentDecisions),
-                          ),
-                          const SizedBox(height: AppSpacing.xl),
-                          _Staggered(
                             index: 8,
-                            child: _CompanyHealthScoreSection(
-                              overallScore: data.overallHealthScore,
-                              categories: data.healthCategories,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.xl),
-                          _Staggered(
-                            index: 9,
                             child: _TodaysFocusSection(focus: data.todaysFocus),
                           ),
                         ],
@@ -210,17 +207,37 @@ class _CeoHomeViewState extends State<_CeoHomeView>
           const SnackBar(
               content: Text('Switch to the AI tab to chat with your copilot')),
         );
-      case 'board_report':
-        _showComingSoon(context, 'Board Report');
-      case 'executive_summary':
+      case 'company_report':
         Navigator.of(context).push(MaterialPageRoute(
             builder: (_) =>
                 _ExecutiveSummaryRoute(summary: data.aiExecutiveSummary)));
+      case 'budget_forecast':
+        _showComingSoon(context, 'Budget Forecast');
       case 'compare_departments':
         _showComingSoon(context, 'Compare Departments');
       default:
         break;
     }
+  }
+
+  void _handleAlertTap(BuildContext context, ExecutiveAlert alert) {
+    if (alert.id == 'al2') {
+      _openUnusedLicenses(context);
+    } else {
+      _showComingSoon(context, alert.title);
+    }
+  }
+
+  void _openUnusedLicenses(BuildContext context) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => const _UnusedLicensesPlaceholderRoute(),
+    ));
+  }
+
+  void _openAiUsageDetail(BuildContext context) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => const AiUsageDetailScreen(),
+    ));
   }
 
   void _openDepartmentDashboard(BuildContext context, DepartmentSummary dept) {
@@ -509,11 +526,13 @@ class _HomeHeader extends StatelessWidget {
 
 // ---------------------------------------------------------------------------
 // EXECUTIVE ALERT BANNER — one alert visible at a time, auto-advances every
-// few seconds, swipeable, dot indicator underneath.
+// few seconds, swipeable, dot indicator underneath, tappable → drills into
+// the relevant screen (e.g. unused licenses).
 // ---------------------------------------------------------------------------
 class _AlertBanner extends StatefulWidget {
-  const _AlertBanner({required this.alerts});
+  const _AlertBanner({required this.alerts, required this.onAlertTap});
   final List<ExecutiveAlert> alerts;
+  final ValueChanged<ExecutiveAlert> onAlertTap;
 
   @override
   State<_AlertBanner> createState() => _AlertBannerState();
@@ -576,39 +595,44 @@ class _AlertBannerState extends State<_AlertBanner> {
             itemBuilder: (context, i) {
               final alert = widget.alerts[i];
               final color = _colorFor(colors, alert.severity);
-              return AnimatedOpacity(
-                opacity: 1,
-                duration: const Duration(milliseconds: 300),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: color.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.16),
-                          borderRadius: BorderRadius.circular(10),
+              return _ScaleOnTap(
+                onTap: () => widget.onAlertTap(alert),
+                child: AnimatedOpacity(
+                  opacity: 1,
+                  duration: const Duration(milliseconds: 300),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: color.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(alert.icon, color: color, size: 18),
                         ),
-                        child: Icon(alert.icon, color: color, size: 18),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: Text(
-                          alert.title,
-                          style: AppTypography.body(colors.textPrimary)
-                              .copyWith(fontWeight: FontWeight.w600),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            alert.title,
+                            style: AppTypography.body(colors.textPrimary)
+                                .copyWith(fontWeight: FontWeight.w600),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                    ],
+                        Icon(Icons.chevron_right_rounded,
+                            color: color, size: 18),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -778,8 +802,9 @@ class _DeptAvatar extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// HERO CARD — budget ring + health score + ROI + productivity gain +
-// active users + status badge, on a premium gradient.
+// HERO CARD — Budget Used %, AI Health Score /100, Total AI Spend,
+// Remaining Budget, AI ROI, Active AI Users. (Productivity pill removed —
+// not part of the approved metric list and not shown anywhere else.)
 // ---------------------------------------------------------------------------
 class _HeroOverviewCard extends StatelessWidget {
   const _HeroOverviewCard({required this.data});
@@ -928,9 +953,6 @@ class _HeroOverviewCard extends StatelessWidget {
                     value: '\$${_compact(data.remainingBudget)}'),
                 _MetricPill(label: 'AI ROI', value: '${data.roiScore.toInt()}'),
                 _MetricPill(
-                    label: 'Productivity',
-                    value: '+${(data.productivityGainPct * 100).toInt()}%'),
-                _MetricPill(
                     label: 'Active users', value: '${data.totalActiveUsers}'),
               ],
             ),
@@ -1068,73 +1090,6 @@ class _SectionHeader extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// COMPANY SNAPSHOT — horizontal scroll of icon+value+label chips.
-// ---------------------------------------------------------------------------
-class _CompanySnapshotRow extends StatelessWidget {
-  const _CompanySnapshotRow({required this.items});
-  final List<CompanySnapshotItem> items;
-
-  static const _accents = [
-    Color(0xFF6C5CE7),
-    Color(0xFF2F80ED),
-    Color(0xFF11998E),
-    Color(0xFFE85D75),
-    Color(0xFFF2994A),
-    Color(0xFF9B51E0),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    return SizedBox(
-      height: 92,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
-        itemBuilder: (context, i) {
-          final item = items[i];
-          final accent = _accents[i % _accents.length];
-          return Container(
-            width: 118,
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: colors.surfaceElevated,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: colors.border),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                  child: Icon(item.icon, color: accent, size: 15),
-                ),
-                const Spacer(),
-                Text(item.value,
-                    style: AppTypography.body(colors.textPrimary)
-                        .copyWith(fontWeight: FontWeight.w700),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-                Text(item.label,
-                    style: AppTypography.caption(colors.textSecondary),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
 // QUICK ACTIONS
 // ---------------------------------------------------------------------------
 class _QuickActionsGrid extends StatelessWidget {
@@ -1216,7 +1171,8 @@ class _QuickActionsGrid extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// KPI GRID — 6 executive cards.
+// KEY EXECUTIVE METRICS — exactly 4 cards: Total AI Spend, Active AI Users,
+// AI Adoption %, Unused Licenses.
 // ---------------------------------------------------------------------------
 class _KpiGrid extends StatelessWidget {
   const _KpiGrid({required this.kpis});
@@ -1228,14 +1184,12 @@ class _KpiGrid extends StatelessWidget {
     Color(0xFF2F80ED),
     Color(0xFF11998E),
     Color(0xFFE85D75),
-    Color(0xFFF2994A),
-    Color(0xFF9B51E0),
   ];
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final visible = kpis.take(6).toList();
+    final visible = kpis.take(4).toList();
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -1309,78 +1263,298 @@ class _KpiGrid extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// BUDGET HEALTH
+// AI USAGE & ADOPTION — top tools with user count, usage level, spend.
+// Lives on its own, not inside Department Performance.
+//
+// v2 — the old layout crammed name / users / level pill / spend into one
+// horizontal row per tool, which got tight enough on narrower screens that
+// it read as cluttered rather than scannable. This redesign gives each tool
+// its own card: icon (color-coded by usage level) + name + spend up top,
+// user count + level pill below, and a level-colored mini progress bar
+// along the bottom — the same visual language as the tool cards on the
+// full AI Usage detail screen, just condensed to fit four on Home.
 // ---------------------------------------------------------------------------
-class _BudgetHealthCard extends StatelessWidget {
-  const _BudgetHealthCard({required this.data});
+class _AiUsageAdoptionSection extends StatelessWidget {
+  const _AiUsageAdoptionSection({
+    required this.tools,
+    required this.onViewAll,
+  });
 
-  final CeoBudgetHealthData data;
+  final List<AiToolUsage> tools;
+  final VoidCallback onViewAll;
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final status = _statusFor(data.utilization);
-    final statusColor = switch (status) {
-      _BudgetStatus.healthy => colors.success,
-      _BudgetStatus.warning => colors.warning,
-      _BudgetStatus.critical => colors.danger,
-    };
+    final visible = tools.take(4).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(child: _SectionHeader(title: 'AI Usage & Adoption')),
+            _ScaleOnTap(
+              onTap: onViewAll,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('View all',
+                      style: AppTypography.caption(colors.primary)
+                          .copyWith(fontWeight: FontWeight.w700)),
+                  Icon(Icons.chevron_right_rounded,
+                      color: colors.primary, size: 16),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        for (var i = 0; i < visible.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: _AiUsageToolCard(tool: visible[i], rank: i + 1),
+          ),
+      ],
+    );
+  }
+}
+
+IconData _iconForAiTool(String name) {
+  final n = name.toLowerCase();
+  if (n.contains('chatgpt')) return Icons.chat_bubble_rounded;
+  if (n.contains('copilot')) return Icons.code_rounded;
+  if (n.contains('claude')) return Icons.auto_awesome_rounded;
+  if (n.contains('gemini')) return Icons.diamond_outlined;
+  return Icons.smart_toy_rounded;
+}
+
+/// (vendor, category) shown as a subtitle under the tool name — turns a
+/// bare tool name into something that reads like a real software catalog
+/// entry, matching the reference "Tool Utilization" cards.
+(String, String) _vendorCategoryForAiTool(String name) {
+  final n = name.toLowerCase();
+  if (n.contains('chatgpt')) return ('OpenAI', 'Generative AI');
+  if (n.contains('copilot')) return ('Microsoft', 'Dev Tools');
+  if (n.contains('claude')) return ('Anthropic', 'Generative AI');
+  if (n.contains('gemini')) return ('Google', 'Generative AI');
+  return ('Third-party', 'AI Tool');
+}
+
+/// AI Usage tool card — v2.
+///
+/// The plain "name / spend / users / level pill / bar" layout worked but
+/// read as a basic list row rather than a proper catalog entry. This
+/// version adds: a rank badge (spend-ranked, since `tools` already arrives
+/// sorted by spend from the cubit), a vendor • category subtitle under the
+/// name (via `_vendorCategoryForAiTool`), a three-column stat row (Users /
+/// Adoption / Cost per user — adoption and cost-per-user are derived from
+/// `usageLevel` and `spend`/`userCount` since the Home summary model
+/// doesn't carry a raw adoption rate), and a gradient (not flat) progress
+/// bar. This is the same information density as the tool cards on the full
+/// AI Usage detail screen, condensed to fit four on Home.
+class _AiUsageToolCard extends StatelessWidget {
+  const _AiUsageToolCard({required this.tool, required this.rank});
+  final AiToolUsage tool;
+  final int rank;
+
+  Color _levelColor(AppColorsData colors) {
+    switch (tool.usageLevel) {
+      case AiUsageLevel.high:
+        return colors.success;
+      case AiUsageLevel.medium:
+        return colors.warning;
+      case AiUsageLevel.low:
+        return colors.danger;
+    }
+  }
+
+  String _levelLabel() {
+    switch (tool.usageLevel) {
+      case AiUsageLevel.high:
+        return 'High';
+      case AiUsageLevel.medium:
+        return 'Medium';
+      case AiUsageLevel.low:
+        return 'Low';
+    }
+  }
+
+  double get _adoptionFraction => switch (tool.usageLevel) {
+        AiUsageLevel.high => 0.88,
+        AiUsageLevel.medium => 0.55,
+        AiUsageLevel.low => 0.24,
+      };
+
+  double get _costPerUser => tool.userCount == 0 ? 0 : tool.spend / tool.userCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    final levelColor = _levelColor(colors);
+    final (vendor, category) = _vendorCategoryForAiTool(tool.toolName);
 
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: colors.surfaceElevated,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: colors.border),
+        boxShadow: [
+          BoxShadow(
+            color: colors.textPrimary.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: levelColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: Icon(_iconForAiTool(tool.toolName),
+                        color: levelColor, size: 20),
+                  ),
+                  Positioned(
+                    top: -6,
+                    left: -6,
+                    child: Container(
+                      width: 18,
+                      height: 18,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: colors.textPrimary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: colors.surfaceElevated, width: 2),
+                      ),
+                      child: Text(
+                        '$rank',
+                        style: AppTypography.caption(colors.surfaceElevated)
+                            .copyWith(fontWeight: FontWeight.w800, fontSize: 9),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
-                  child: Text('Company budget health',
-                      style: AppTypography.h3(colors.textPrimary))),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(999),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tool.toolName,
+                      style: AppTypography.body(colors.textPrimary)
+                          .copyWith(fontWeight: FontWeight.w700),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      '$vendor · $category',
+                      style: AppTypography.caption(colors.textSecondary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-                child: Text(_statusLabelFor(status),
-                    style: AppTypography.caption(statusColor)),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('\$${_compact(tool.spend)}',
+                      style: AppTypography.body(colors.textPrimary)
+                          .copyWith(fontWeight: FontWeight.w700)),
+                  Container(
+                    margin: const EdgeInsets.only(top: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: levelColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(_levelLabel(),
+                        style: AppTypography.caption(levelColor)
+                            .copyWith(fontWeight: FontWeight.w700, fontSize: 10)),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.lg),
-          Wrap(
-            spacing: AppSpacing.lg,
-            runSpacing: AppSpacing.md,
-            children: [
-              _LabeledValue(label: 'Spend', value: '\$${_compact(data.used)}'),
-              _LabeledValue(
-                  label: 'Remaining', value: '\$${_compact(data.remaining)}'),
-              _LabeledValue(
-                  label: 'Forecast',
-                  value: '${(data.forecast * 100).toInt()}%'),
-              _LabeledValue(
-                  label: 'Month-end est.',
-                  value: '\$${_compact(data.expectedMonthEndSpend)}'),
-            ],
+          const SizedBox(height: AppSpacing.sm),
+          Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _MiniStat(
+                    label: 'Users',
+                    value: '${tool.userCount}',
+                    colors: colors,
+                  ),
+                ),
+                Container(width: 1, height: 22, color: colors.border),
+                Expanded(
+                  child: _MiniStat(
+                    label: 'Adoption',
+                    value: '${(_adoptionFraction * 100).toInt()}%',
+                    colors: colors,
+                  ),
+                ),
+                Container(width: 1, height: 22, color: colors.border),
+                Expanded(
+                  child: _MiniStat(
+                    label: 'Cost/user',
+                    value: '\$${_costPerUser.toStringAsFixed(0)}',
+                    colors: colors,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.sm),
           ClipRRect(
             borderRadius: BorderRadius.circular(999),
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: data.utilization),
-              duration: const Duration(milliseconds: 900),
-              curve: Curves.easeOutCubic,
-              builder: (context, value, _) => LinearProgressIndicator(
-                value: value,
-                minHeight: 8,
-                color: statusColor,
-                backgroundColor: colors.primaryLight,
+            child: SizedBox(
+              height: 6,
+              child: Stack(
+                children: [
+                  Container(color: colors.border),
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: _adoptionFraction),
+                    duration: const Duration(milliseconds: 800),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, value, _) => FractionallySizedBox(
+                      widthFactor: value,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              levelColor,
+                              levelColor.withValues(alpha: 0.65),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1390,32 +1564,31 @@ class _BudgetHealthCard extends StatelessWidget {
   }
 }
 
-class _LabeledValue extends StatelessWidget {
-  const _LabeledValue({required this.label, required this.value});
-
+class _MiniStat extends StatelessWidget {
+  const _MiniStat({required this.label, required this.value, required this.colors});
   final String label;
   final String value;
+  final AppColorsData colors;
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    return SizedBox(
-      width: 130,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: AppTypography.caption(colors.textSecondary)),
-          const SizedBox(height: 2),
-          Text(value, style: AppTypography.body(colors.textPrimary)),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(value,
+            style: AppTypography.caption(colors.textPrimary)
+                .copyWith(fontWeight: FontWeight.w700)),
+        Text(label, style: AppTypography.caption(colors.textSecondary).copyWith(fontSize: 10)),
+      ],
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// DEPARTMENT PERFORMANCE — image, name, head, headcount, budget/spend,
-// top tool, health score ring, status badge, trend, View Details button.
+// DEPARTMENT PERFORMANCE — image, name, headcount, spend, adoption/health
+// ring, animated spend-vs-budget progress bar, status badge, View Details.
+// Top-tool line removed — tool usage now lives only in the AI Usage &
+// Adoption section.
 // ---------------------------------------------------------------------------
 class _DepartmentBreakdownSection extends StatelessWidget {
   const _DepartmentBreakdownSection({
@@ -1514,7 +1687,7 @@ class _DepartmentCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 4),
                       Text(
-                          '\$${_compact(dept.spend)} of \$${_compact(dept.budget)} · top: ${dept.topTool}',
+                          '\$${_compact(dept.spend)} of \$${_compact(dept.budget)}',
                           style: AppTypography.caption(colors.textSecondary),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis),
@@ -1544,6 +1717,45 @@ class _DepartmentCard extends StatelessWidget {
                 ),
               ],
             ),
+
+            // -----------------------------------------------------------
+            // Animated department spend-vs-budget progress bar. Uses the
+            // same statusColor (healthy/warning/critical) as the badge
+            // below, and the same TweenAnimationBuilder pattern as the
+            // company-wide budget health card for a consistent feel.
+            // -----------------------------------------------------------
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(
+                        begin: 0.0,
+                        end: dept.utilization.clamp(0.0, 1.0),
+                      ),
+                      duration: const Duration(milliseconds: 900),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, value, _) => LinearProgressIndicator(
+                        value: value,
+                        minHeight: 6,
+                        color: statusColor,
+                        backgroundColor: colors.border,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  '${(dept.utilization * 100).toInt()}%',
+                  style: AppTypography.caption(statusColor)
+                      .copyWith(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+
             const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
@@ -1582,7 +1794,8 @@ class _DepartmentCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// AI STRATEGIC INSIGHTS — priority badge + timestamp + Read more.
+// AI STRATEGIC INSIGHTS — top 3 only, each with icon + priority badge +
+// timestamp + Read more.
 // ---------------------------------------------------------------------------
 class _StrategicInsightsSection extends StatelessWidget {
   const _StrategicInsightsSection({required this.insights});
@@ -1596,7 +1809,7 @@ class _StrategicInsightsSection extends StatelessWidget {
       children: [
         const _SectionHeader(title: 'AI strategic insights'),
         const SizedBox(height: AppSpacing.md),
-        ...insights.take(4).map((insight) => Padding(
+        ...insights.take(3).map((insight) => Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.sm),
               child: _InsightCard(insight: insight),
             )),
@@ -2239,268 +2452,8 @@ class _RejectReasonSheetState extends State<_RejectReasonSheet> {
 }
 
 // ---------------------------------------------------------------------------
-// RECENT EXECUTIVE DECISIONS
-// ---------------------------------------------------------------------------
-class _RecentDecisionsSection extends StatelessWidget {
-  const _RecentDecisionsSection({required this.decisions});
-  final List<RecentDecisionEntry> decisions;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _SectionHeader(title: 'Recent executive decisions'),
-        const SizedBox(height: AppSpacing.md),
-        if (decisions.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            decoration: BoxDecoration(
-              color: colors.surfaceElevated,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: colors.border),
-            ),
-            child: Text('No decisions yet.',
-                style: AppTypography.body(colors.textSecondary)),
-          )
-        else
-          Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: colors.surfaceElevated,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: colors.border),
-            ),
-            child: Column(
-              children: [
-                for (var i = 0; i < decisions.length; i++)
-                  _TimelineTile(
-                    entry: decisions[i],
-                    isLast: i == decisions.length - 1,
-                  ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _TimelineTile extends StatelessWidget {
-  const _TimelineTile({required this.entry, required this.isLast});
-  final RecentDecisionEntry entry;
-  final bool isLast;
-
-  ({IconData icon, Color Function(AppColorsData) color, String label})
-      get _style {
-    switch (entry.type) {
-      case DecisionType.approved:
-        return (
-          icon: Icons.check_circle_rounded,
-          color: (c) => c.success,
-          label: 'Approved'
-        );
-      case DecisionType.rejected:
-        return (
-          icon: Icons.cancel_rounded,
-          color: (c) => c.danger,
-          label: 'Rejected'
-        );
-      case DecisionType.delegated:
-        return (
-          icon: Icons.forward_rounded,
-          color: (c) => c.info,
-          label: 'Delegated'
-        );
-    }
-  }
-
-  String _relativeTime(DateTime time) {
-    final diff = DateTime.now().difference(time);
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    final style = _style;
-    final color = style.color(colors);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Column(
-            children: [
-              Icon(style.icon, color: color, size: 20),
-              if (!isLast)
-                Container(
-                  width: 2,
-                  height: 28,
-                  color: colors.border,
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                ),
-            ],
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 1),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(entry.title,
-                      style: AppTypography.body(colors.textPrimary)
-                          .copyWith(fontWeight: FontWeight.w600),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 2),
-                  Text('${style.label} · ${_relativeTime(entry.time)}',
-                      style: AppTypography.caption(colors.textSecondary)),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// COMPANY HEALTH SCORE
-// ---------------------------------------------------------------------------
-class _CompanyHealthScoreSection extends StatelessWidget {
-  const _CompanyHealthScoreSection(
-      {required this.overallScore, required this.categories});
-  final int overallScore;
-  final List<HealthCategoryScore> categories;
-
-  Color _colorFor(AppColorsData colors, double score) {
-    if (score >= 0.85) return colors.success;
-    if (score >= 0.65) return colors.warning;
-    return colors.danger;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _SectionHeader(title: 'Company health score'),
-        const SizedBox(height: AppSpacing.md),
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: BoxDecoration(
-            color: colors.surfaceElevated,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: colors.border),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 84,
-                height: 84,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    SizedBox(
-                      width: 84,
-                      height: 84,
-                      child: CircularProgressIndicator(
-                        value: 1,
-                        strokeWidth: 8,
-                        strokeCap: StrokeCap.round,
-                        valueColor: AlwaysStoppedAnimation(colors.primaryLight),
-                      ),
-                    ),
-                    TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0, end: overallScore / 100),
-                      duration: const Duration(milliseconds: 1000),
-                      curve: Curves.easeOutCubic,
-                      builder: (context, value, _) => SizedBox(
-                        width: 84,
-                        height: 84,
-                        child: CircularProgressIndicator(
-                          value: value,
-                          strokeWidth: 8,
-                          strokeCap: StrokeCap.round,
-                          backgroundColor: Colors.transparent,
-                          valueColor: AlwaysStoppedAnimation(colors.primary),
-                        ),
-                      ),
-                    ),
-                    _AnimatedCounterText(
-                      target: overallScore,
-                      style: AppTypography.h3(colors.textPrimary),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(
-                child: Column(
-                  children: [
-                    for (final cat in categories)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                        child: Row(
-                          children: [
-                            SizedBox(
-                              width: 84,
-                              child: Text(cat.label,
-                                  style: AppTypography.caption(
-                                      colors.textSecondary),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis),
-                            ),
-                            Expanded(
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(999),
-                                child: TweenAnimationBuilder<double>(
-                                  tween: Tween(begin: 0, end: cat.score),
-                                  duration: const Duration(milliseconds: 900),
-                                  curve: Curves.easeOutCubic,
-                                  builder: (context, value, _) =>
-                                      LinearProgressIndicator(
-                                    value: value,
-                                    minHeight: 6,
-                                    color: _colorFor(colors, cat.score),
-                                    backgroundColor: colors.border,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            SizedBox(
-                              width: 30,
-                              child: Text('${(cat.score * 100).toInt()}',
-                                  textAlign: TextAlign.end,
-                                  style: AppTypography.caption(
-                                      colors.textPrimary)),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// TODAY'S FOCUS
+// TODAY'S FOCUS — exactly 3 items: Highest Risk Department, Largest
+// Opportunity, Biggest Saving.
 // ---------------------------------------------------------------------------
 class _TodaysFocusSection extends StatelessWidget {
   const _TodaysFocusSection({required this.focus});
@@ -2527,18 +2480,6 @@ class _TodaysFocusSection extends StatelessWidget {
         colors.success,
         'Biggest savings',
         focus.biggestSavings
-      ),
-      (
-        Icons.bolt_rounded,
-        colors.primary,
-        'Most active AI tool',
-        focus.mostActiveTool
-      ),
-      (
-        Icons.attach_money_rounded,
-        colors.info,
-        'Most expensive tool',
-        focus.mostExpensiveTool
       ),
     ];
 
@@ -2619,6 +2560,37 @@ class _ExecutiveSummaryRoute extends StatelessWidget {
                 style: AppTypography.h3(colors.textPrimary)),
             const SizedBox(height: AppSpacing.md),
             Text(summary, style: AppTypography.body(colors.textSecondary)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Placeholder destination for the unused-licenses alert / KPI card until a
+/// real license-management screen exists in the app's route table.
+class _UnusedLicensesPlaceholderRoute extends StatelessWidget {
+  const _UnusedLicensesPlaceholderRoute();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Unused Licenses')),
+      body: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.person_off_outlined, size: 40, color: colors.warning),
+            const SizedBox(height: AppSpacing.md),
+            Text('Unused license detail is coming soon',
+                style: AppTypography.h3(colors.textPrimary)),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'This will list every seat inactive for 30+ days, grouped by department and tool, so you can reassign or reclaim them.',
+              style: AppTypography.body(colors.textSecondary),
+            ),
           ],
         ),
       ),

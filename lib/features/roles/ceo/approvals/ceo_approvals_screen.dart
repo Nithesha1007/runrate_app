@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import '../data/ceo_mock_repository.dart';
 
 import 'ceo_approvals_cubit.dart';
@@ -8,12 +9,10 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_colors_data.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/utils/formatters.dart';
 import 'package:runrate/features/roles/ceo/shared/models/approval_model.dart';
 import '../../../../features/notifications/notifications_cubit.dart';
-import '../../../../shared/widgets/app_card.dart';
+
 import '../../../../shared/widgets/segmented_toggle.dart';
-import '../../../../shared/widgets/approval_card.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/reject_request_sheet.dart';
@@ -23,6 +22,12 @@ import '../../../../shared/widgets/toast.dart';
 /// CEO · Approvals — strategic sign-offs only (large budgets, vendor
 /// contracts, leadership hires, partnerships). Approve/Reject/Request Info
 /// act on the pending list; a History tab shows past decisions with date.
+///
+/// NOTE: no longer uses the shared `ApprovalCard` widget — it was rendering
+/// raw unresolved template text (`${approval.requesterName}`) and a
+/// currency-symbol glyph that shows as a black tofu box on this font. This
+/// screen now builds its own `_ApprovalListCard` with plain, correctly
+/// interpolated text and an icon-based currency display instead.
 class CeoApprovalsScreen extends StatelessWidget {
   const CeoApprovalsScreen({super.key});
 
@@ -91,13 +96,13 @@ class _CeoApprovalsViewState extends State<_CeoApprovalsView> {
               return ListView(
                 padding: const EdgeInsets.all(AppSpacing.xl),
                 children: const [
-                  SkeletonLoader(height: 180, ),
+                  SkeletonLoader(height: 180),
                   SizedBox(height: AppSpacing.lg),
-                  SkeletonLoader(height: 130),
+                  SkeletonLoader(height: 150),
                   SizedBox(height: AppSpacing.md),
-                  SkeletonLoader(height: 130),
+                  SkeletonLoader(height: 150),
                   SizedBox(height: AppSpacing.md),
-                  SkeletonLoader(height: 130),
+                  SkeletonLoader(height: 150),
                 ],
               );
             }
@@ -188,57 +193,42 @@ class _CeoApprovalsViewState extends State<_CeoApprovalsView> {
                 duration: const Duration(milliseconds: 200),
                 child: hiding
                     ? const SizedBox.shrink()
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _PriorityTag(priority: state.priorityOf(approval)),
-                          const SizedBox(height: AppSpacing.xs),
-                          ApprovalCard(
-                            approval: approval,
-                            onApprove: () =>
-                                _actOnItem(context, approval.id, () {
+                    : _ApprovalListCard(
+                        approval: approval,
+                        priority: state.priorityOf(approval),
+                        onApprove: () => _actOnItem(context, approval.id, () {
+                          context
+                              .read<CeoApprovalsCubit>()
+                              .approve(approval.id);
+                          showAppToast(
+                              context, 'Approved "${approval.title}"');
+                        }),
+                        onReject: () async {
+                          final message = await showRejectRequestSheet(
+                              context,
+                              requesterName: approval.requesterName);
+                          if (message != null && context.mounted) {
+                            _actOnItem(context, approval.id, () {
                               context
                                   .read<CeoApprovalsCubit>()
-                                  .approve(approval.id);
-                              showAppToast(
-                                  context, 'Approved "${approval.title}"');
-                            }),
-                            onReject: () async {
-                              final message = await showRejectRequestSheet(
-                                  context,
-                                  requesterName: approval.requesterName);
-                              if (message != null && context.mounted) {
-                                _actOnItem(context, approval.id, () {
-                                  context
-                                      .read<CeoApprovalsCubit>()
-                                      .reject(approval.id, message);
-                                  showAppToast(context,
-                                      'Rejected and notified ${approval.requesterName}');
-                                });
-                              }
-                            },
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton.icon(
-                              icon: const Icon(Icons.help_outline, size: 18),
-                              label: const Text('Request Info'),
-                              onPressed: () async {
-                                final message = await showRejectRequestSheet(
-                                    context,
-                                    requesterName: approval.requesterName);
-                                if (message != null && context.mounted) {
-                                  context
-                                      .read<CeoApprovalsCubit>()
-                                      .requestInfo(approval.id, message);
-                                  showAppToast(context,
-                                      'Requested more info from ${approval.requesterName}');
-                                }
-                              },
-                            ),
-                          ),
-                        ],
+                                  .reject(approval.id, message);
+                              showAppToast(context,
+                                  'Rejected and notified ${approval.requesterName}');
+                            });
+                          }
+                        },
+                        onRequestInfo: () async {
+                          final message = await showRejectRequestSheet(
+                              context,
+                              requesterName: approval.requesterName);
+                          if (message != null && context.mounted) {
+                            context
+                                .read<CeoApprovalsCubit>()
+                                .requestInfo(approval.id, message);
+                            showAppToast(context,
+                                'Requested more info from ${approval.requesterName}');
+                          }
+                        },
                       ),
               ),
             ),
@@ -281,7 +271,7 @@ class _CeoApprovalsViewState extends State<_CeoApprovalsView> {
 }
 
 // ---------------------------------------------------------------------------
-// Screen header — title + subtitle, consistent with Home/Teams headers.
+// Screen header
 // ---------------------------------------------------------------------------
 class _ScreenHeader extends StatelessWidget {
   const _ScreenHeader({required this.colors});
@@ -364,10 +354,16 @@ class _ScaleOnTapState extends State<_ScaleOnTap> {
   }
 }
 
+final _amountFormat = NumberFormat('#,##0');
+String _formatAmount(double value) => _amountFormat.format(value);
+String _compact(double value) {
+  if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
+  if (value >= 1000) return '${(value / 1000).toStringAsFixed(0)}K';
+  return _formatAmount(value);
+}
+
 // ---------------------------------------------------------------------------
-// HERO CARD — gradient summary: pending count, total $ awaiting sign-off,
-// and how many are urgent. Gives the CEO the stakes at a glance before
-// scrolling the list.
+// HERO CARD
 // ---------------------------------------------------------------------------
 class _ApprovalsHeroCard extends StatelessWidget {
   const _ApprovalsHeroCard({required this.state});
@@ -449,7 +445,7 @@ class _ApprovalsHeroCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _StatChip(
-                          label: 'Value', value: '\$${_compact(totalValue)}'),
+                          label: 'Value', value: _compact(totalValue)),
                       const SizedBox(height: AppSpacing.sm),
                       _StatChip(
                           label: 'Approved this month',
@@ -464,12 +460,6 @@ class _ApprovalsHeroCard extends StatelessWidget {
       ),
     );
   }
-}
-
-String _compact(double value) {
-  if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
-  if (value >= 1000) return '${(value / 1000).toStringAsFixed(0)}K';
-  return value.toStringAsFixed(0);
 }
 
 class _StatusPill extends StatelessWidget {
@@ -555,8 +545,7 @@ class _StatChip extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// PRIORITY FILTER ROW — All / Urgent / Normal chips with live counts, so
-// the CEO can jump straight to the items that matter most.
+// PRIORITY FILTER ROW
 // ---------------------------------------------------------------------------
 class _PriorityFilterRow extends StatelessWidget {
   const _PriorityFilterRow({
@@ -636,31 +625,198 @@ class _PriorityFilterRow extends StatelessWidget {
   }
 }
 
-class _PriorityTag extends StatelessWidget {
+// ---------------------------------------------------------------------------
+// APPROVAL LIST CARD — replaces the broken shared `ApprovalCard`. Plain,
+// correctly interpolated text, icon-based currency (no tofu glyph), a
+// priority ribbon, and Approve / Reject / Request Info actions.
+// ---------------------------------------------------------------------------
+class _ApprovalListCard extends StatelessWidget {
+  const _ApprovalListCard({
+    required this.approval,
+    required this.priority,
+    required this.onApprove,
+    required this.onReject,
+    required this.onRequestInfo,
+  });
+
+  final ApprovalModel approval;
   final ApprovalPriority priority;
-  const _PriorityTag({required this.priority});
+  final VoidCallback onApprove;
+  final VoidCallback onReject;
+  final VoidCallback onRequestInfo;
+
+  bool get _isUrgent =>
+      priority == ApprovalPriority.high || priority == ApprovalPriority.critical;
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final isUrgent = priority == ApprovalPriority.high ||
-        priority == ApprovalPriority.critical;
-    final color = isUrgent ? colors.danger : colors.info;
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Text(
-          isUrgent ? 'URGENT' : 'NORMAL',
-          style: AppTypography.caption(color).copyWith(
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.5,
+    final priorityColor = _isUrgent ? colors.danger : colors.info;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: colors.surfaceElevated,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colors.border),
+        boxShadow: [
+          BoxShadow(
+            color: colors.textPrimary.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-        ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm, vertical: 4),
+                decoration: BoxDecoration(
+                  color: priorityColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                          color: priorityColor, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(_isUrgent ? 'URGENT' : 'NORMAL',
+                        style: AppTypography.caption(priorityColor).copyWith(
+                            fontWeight: FontWeight.w700, letterSpacing: 0.4)),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              if (approval.category.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: colors.border),
+                  ),
+                  child: Text(approval.category,
+                      style: AppTypography.caption(colors.textSecondary)),
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(approval.title,
+              style: AppTypography.h3(colors.textPrimary),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(Icons.person_outline_rounded,
+                  size: 14, color: colors.textSecondary),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text('Requested by ${approval.requesterName}',
+                    style: AppTypography.caption(colors.textSecondary),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Icon(Icons.currency_rupee_rounded,
+                  size: 18, color: colors.textPrimary),
+              Text(_formatAmount(approval.amount),
+                  style: AppTypography.h3(colors.textPrimary)),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: _ScaleOnTap(
+                  onTap: onReject,
+                  child: Container(
+                    height: 42,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: colors.danger.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border:
+                          Border.all(color: colors.danger.withValues(alpha: 0.3)),
+                    ),
+                    child: Text('Reject',
+                        style: AppTypography.body(colors.danger)
+                            .copyWith(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                flex: 2,
+                child: _ScaleOnTap(
+                  onTap: onApprove,
+                  child: Container(
+                    height: 42,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      gradient: LinearGradient(
+                          colors: [colors.primary, colors.secondary]),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colors.primary.withValues(alpha: 0.28),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.check_rounded,
+                            size: 18, color: Colors.white),
+                        const SizedBox(width: 6),
+                        Text('Approve',
+                            style: AppTypography.body(Colors.white)
+                                .copyWith(fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Align(
+            alignment: Alignment.centerRight,
+            child: _ScaleOnTap(
+              onTap: onRequestInfo,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.help_outline_rounded,
+                        size: 16, color: colors.primary),
+                    const SizedBox(width: 4),
+                    Text('Request Info',
+                        style: AppTypography.caption(colors.primary)
+                            .copyWith(fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -711,16 +867,30 @@ class _HistoryTile extends StatelessWidget {
                       .copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  '${approval.requesterName} · ${Formatters.currency(approval.amount)}'
-                  '${decidedAt != null ? ' · ${_formatDate(decidedAt!)}' : ''}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.caption(colors.textSecondary),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        approval.requesterName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.caption(colors.textSecondary),
+                      ),
+                    ),
+                    Icon(Icons.currency_rupee_rounded,
+                        size: 12, color: colors.textSecondary),
+                    Text(_formatAmount(approval.amount),
+                        style: AppTypography.caption(colors.textSecondary)),
+                    if (decidedAt != null) ...[
+                      Text(' · ${_formatDate(decidedAt!)}',
+                          style: AppTypography.caption(colors.textSecondary)),
+                    ],
+                  ],
                 ),
               ],
             ),
           ),
+          const SizedBox(width: AppSpacing.sm),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(

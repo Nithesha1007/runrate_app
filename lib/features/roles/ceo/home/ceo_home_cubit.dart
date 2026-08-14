@@ -64,56 +64,16 @@ enum StrategicImpact { costSaving, risk, growth }
 
 typedef ExecutiveAlert = AlertModel;
 
-class CompanySnapshotItem {
-  const CompanySnapshotItem({
-    required this.icon,
-    required this.value,
-    required this.label,
-  });
-
-  final IconData icon;
-  final String value;
-  final String label;
-}
-
-enum DecisionType { approved, rejected, delegated }
-
-class RecentDecisionEntry {
-  const RecentDecisionEntry({
-    required this.title,
-    required this.time,
-    required this.type,
-  });
-
-  final String title;
-  final DateTime time;
-  final DecisionType type;
-}
-
-class HealthCategoryScore {
-  const HealthCategoryScore({
-    required this.label,
-    required this.score,
-  });
-
-  final String label;
-  final double score;
-}
-
 class TodaysFocusData {
   const TodaysFocusData({
     required this.highestRiskDepartment,
     required this.largestOpportunity,
     required this.biggestSavings,
-    required this.mostActiveTool,
-    required this.mostExpensiveTool,
   });
 
   final String highestRiskDepartment;
   final String largestOpportunity;
   final String biggestSavings;
-  final String mostActiveTool;
-  final String mostExpensiveTool;
 }
 
 class DepartmentSummary {
@@ -133,6 +93,9 @@ class DepartmentSummary {
   final double spend;
   final double budget;
   final double adoptionRate;
+  // Retained on the model (used by department-detail navigation elsewhere)
+  // but no longer rendered on the Home department card — tool usage now
+  // lives exclusively in the "AI Usage & Adoption" section.
   final String topTool;
   final int headcount;
   final DepartmentTrend trend;
@@ -186,6 +149,25 @@ class EscalatedApprovalData {
   final String riskLevel;
 }
 
+// ---------------------------------------------------------------------------
+// AI Usage & Adoption — per-tool rollup shown in its own Home section.
+// ---------------------------------------------------------------------------
+enum AiUsageLevel { high, medium, low }
+
+class AiToolUsage {
+  const AiToolUsage({
+    required this.toolName,
+    required this.userCount,
+    required this.usageLevel,
+    required this.spend,
+  });
+
+  final String toolName;
+  final int userCount;
+  final AiUsageLevel usageLevel;
+  final double spend;
+}
+
 class CeoHomeData {
   const CeoHomeData({
     required this.ceoName,
@@ -195,18 +177,14 @@ class CeoHomeData {
     required this.hasUnreadNotifications,
     required this.isOnline,
     required this.alerts,
-    required this.snapshot,
     required this.quickActions,
     required this.kpis,
     required this.budgetHealth,
     required this.departments,
     required this.insights,
     required this.escalatedApprovals,
-    required this.recentDecisions,
     required this.overallHealthScore,
-    required this.healthCategories,
     required this.todaysFocus,
-    required this.productivityGainPct,
     required this.totalSpend,
     required this.totalBudget,
     required this.remainingBudget,
@@ -214,6 +192,8 @@ class CeoHomeData {
     required this.roiScore,
     required this.totalActiveUsers,
     required this.aiExecutiveSummary,
+    required this.unusedLicenseCount,
+    required this.aiToolUsage,
   });
 
   final String ceoName;
@@ -224,18 +204,14 @@ class CeoHomeData {
   final bool? isOnline;
 
   final List<ExecutiveAlert> alerts;
-  final List<CompanySnapshotItem> snapshot;
   final List<CeoQuickActionItem> quickActions;
   final List<CeoKpiCardData> kpis;
   final CeoBudgetHealthData budgetHealth;
   final List<DepartmentSummary> departments;
   final List<StrategicInsightData> insights;
   final List<EscalatedApprovalData> escalatedApprovals;
-  final List<RecentDecisionEntry> recentDecisions;
   final int overallHealthScore;
-  final List<HealthCategoryScore> healthCategories;
   final TodaysFocusData todaysFocus;
-  final double productivityGainPct;
   final double totalSpend;
   final double totalBudget;
   final double remainingBudget;
@@ -243,6 +219,8 @@ class CeoHomeData {
   final double roiScore;
   final int totalActiveUsers;
   final String aiExecutiveSummary;
+  final int unusedLicenseCount;
+  final List<AiToolUsage> aiToolUsage;
 
   CeoHomeData copyWith({
     List<CeoKpiCardData>? kpis,
@@ -256,18 +234,14 @@ class CeoHomeData {
       hasUnreadNotifications: hasUnreadNotifications,
       isOnline: isOnline,
       alerts: alerts,
-      snapshot: snapshot,
       quickActions: quickActions,
       kpis: kpis ?? this.kpis,
       budgetHealth: budgetHealth,
       departments: departments,
       insights: insights,
       escalatedApprovals: escalatedApprovals ?? this.escalatedApprovals,
-      recentDecisions: recentDecisions,
       overallHealthScore: overallHealthScore,
-      healthCategories: healthCategories,
       todaysFocus: todaysFocus,
-      productivityGainPct: productivityGainPct,
       totalSpend: totalSpend,
       totalBudget: totalBudget,
       remainingBudget: remainingBudget,
@@ -275,6 +249,8 @@ class CeoHomeData {
       roiScore: roiScore,
       totalActiveUsers: totalActiveUsers,
       aiExecutiveSummary: aiExecutiveSummary,
+      unusedLicenseCount: unusedLicenseCount,
+      aiToolUsage: aiToolUsage,
     );
   }
 }
@@ -324,9 +300,9 @@ class CeoHomeCubit extends Cubit<CeoHomeState> {
 
   Future<void> refresh() => loadDashboard();
 
-  /// Optimistically removes [id] from the escalated-approvals list and
-  /// updates the "Escalated Approvals" KPI count. Swap for a real API
-  /// call + rollback-on-error once the approvals endpoint is wired up.
+  /// Optimistically removes [id] from the escalated-approvals list.
+  /// Swap for a real API call + rollback-on-error once the approvals
+  /// endpoint is wired up.
   Future<void> approveEscalation(String id) => _resolveEscalation(id);
 
   /// [reason] and [note] come from the reject-reason bottom sheet. Swap
@@ -349,23 +325,7 @@ class CeoHomeCubit extends Cubit<CeoHomeState> {
     final data = current.data;
     final updated = data.escalatedApprovals.where((r) => r.id != id).toList();
 
-    final updatedKpis = data.kpis.map((kpi) {
-      if (kpi.label != 'Escalated Approvals') return kpi;
-      final urgent = updated.where((r) => r.priority == 'High').length;
-      return CeoKpiCardData(
-        label: kpi.label,
-        value: '${updated.length}',
-        subtitle: updated.isEmpty ? 'All clear' : '$urgent need urgent review',
-        trend: kpi.trend,
-        trendValue: kpi.trendValue,
-        icon: kpi.icon,
-      );
-    }).toList();
-
-    emit(CeoHomeLoaded(data.copyWith(
-      escalatedApprovals: updated,
-      kpis: updatedKpis,
-    )));
+    emit(CeoHomeLoaded(data.copyWith(escalatedApprovals: updated)));
   }
 
   Future<CeoHomeData> _fetchMockDashboard() async {
@@ -468,8 +428,8 @@ class CeoHomeCubit extends Cubit<CeoHomeState> {
         : departments.fold<double>(
                 0, (sum, d) => sum + d.adoptionRate * d.headcount) /
             totalHeadcount;
-    final urgentApprovals =
-        escalatedApprovals.where((r) => r.priority == 'High').length;
+
+    const unusedLicenseCount = 24;
 
     final kpis = [
       CeoKpiCardData(
@@ -481,30 +441,28 @@ class CeoHomeCubit extends Cubit<CeoHomeState> {
         icon: Icons.account_balance_wallet_rounded,
       ),
       CeoKpiCardData(
-        label: 'Org-wide Adoption',
-        value: '${(weightedAdoption * 100).toInt()}%',
-        subtitle: '$totalHeadcount team members',
+        label: 'Active AI Users',
+        value: '$totalHeadcount',
+        subtitle: 'Across ${departments.length} departments',
         trend: '▲ 6%',
         trendValue: 6,
         icon: Icons.groups_rounded,
       ),
       CeoKpiCardData(
-        label: 'Active Departments',
-        value: '${departments.length}',
-        subtitle: 'All reporting in',
-        trend: '▲ 0',
-        trendValue: 0,
-        icon: Icons.apartment_rounded,
+        label: 'AI Adoption %',
+        value: '${(weightedAdoption * 100).toInt()}%',
+        subtitle: 'Weighted by headcount',
+        trend: '▲ 4%',
+        trendValue: 4,
+        icon: Icons.trending_up_rounded,
       ),
       CeoKpiCardData(
-        label: 'Escalated Approvals',
-        value: '${escalatedApprovals.length}',
-        subtitle: escalatedApprovals.isEmpty
-            ? 'All clear'
-            : '$urgentApprovals need urgent review',
-        trend: escalatedApprovals.isEmpty ? '—' : '▼ 1',
-        trendValue: escalatedApprovals.isEmpty ? 0 : -1,
-        icon: Icons.pending_actions_rounded,
+        label: 'Unused Licenses',
+        value: '$unusedLicenseCount',
+        subtitle: 'Inactive 30+ days',
+        trend: '▼ 3',
+        trendValue: -3,
+        icon: Icons.person_off_outlined,
       ),
     ];
 
@@ -526,29 +484,12 @@ class CeoHomeCubit extends Cubit<CeoHomeState> {
         ),
         ExecutiveAlert(
           id: 'al2',
-          title: '24 unused licenses detected',
+          title: '$unusedLicenseCount unused licenses detected',
           description:
               'GitHub Copilot seats in Engineering unused for 30+ days.',
           severity: AlertSeverity.warning,
           icon: Icons.person_off_outlined,
           actionLabel: 'Reassign',
-        ),
-      ],
-      snapshot: [
-        CompanySnapshotItem(
-          icon: Icons.group_rounded,
-          value: '${departments.length}',
-          label: 'Departments',
-        ),
-        CompanySnapshotItem(
-          icon: Icons.people_alt_rounded,
-          value: '${totalHeadcount}',
-          label: 'Active users',
-        ),
-        CompanySnapshotItem(
-          icon: Icons.trending_up_rounded,
-          value: '${(utilization * 100).toInt()}%',
-          label: 'Budget used',
         ),
       ],
       totalSpend: totalSpend,
@@ -557,6 +498,7 @@ class CeoHomeCubit extends Cubit<CeoHomeState> {
       budgetUtilization: utilization,
       roiScore: 87,
       totalActiveUsers: totalHeadcount,
+      unusedLicenseCount: unusedLicenseCount,
       quickActions: const [
         CeoQuickActionItem(
           title: 'Ask AI',
@@ -617,37 +559,38 @@ class CeoHomeCubit extends Cubit<CeoHomeState> {
         ),
       ],
       escalatedApprovals: escalatedApprovals,
-      recentDecisions: [
-        RecentDecisionEntry(
-          title: 'Approved Claude Team expansion',
-          time: DateTime.now().subtract(const Duration(hours: 2)),
-          type: DecisionType.approved,
-        ),
-        RecentDecisionEntry(
-          title: 'Rejected new Jasper contract',
-          time: DateTime.now().subtract(const Duration(hours: 5)),
-          type: DecisionType.rejected,
-        ),
-        RecentDecisionEntry(
-          title: 'Delegated Datadog renewal review',
-          time: DateTime.now().subtract(const Duration(hours: 18)),
-          type: DecisionType.delegated,
-        ),
-      ],
       overallHealthScore: 86,
-      healthCategories: const [
-        HealthCategoryScore(label: 'Adoption', score: 0.82),
-        HealthCategoryScore(label: 'Spend', score: 0.78),
-        HealthCategoryScore(label: 'Compliance', score: 0.92),
-      ],
       todaysFocus: const TodaysFocusData(
         highestRiskDepartment: 'Operations',
         largestOpportunity: 'Sales enablement AI',
         biggestSavings: 'Unused Copilot seats',
-        mostActiveTool: 'ChatGPT Enterprise',
-        mostExpensiveTool: 'Claude Enterprise',
       ),
-      productivityGainPct: 0.14,
+      aiToolUsage: const [
+        AiToolUsage(
+          toolName: 'ChatGPT Enterprise',
+          userCount: 142,
+          usageLevel: AiUsageLevel.high,
+          spend: 48200,
+        ),
+        AiToolUsage(
+          toolName: 'GitHub Copilot',
+          userCount: 64,
+          usageLevel: AiUsageLevel.high,
+          spend: 31200,
+        ),
+        AiToolUsage(
+          toolName: 'Claude',
+          userCount: 58,
+          usageLevel: AiUsageLevel.medium,
+          spend: 22400,
+        ),
+        AiToolUsage(
+          toolName: 'Gemini',
+          userCount: 19,
+          usageLevel: AiUsageLevel.low,
+          spend: 6800,
+        ),
+      ],
       aiExecutiveSummary:
           'Company-wide AI spend is on track at ${(utilization * 100).toInt()}% of budget with adoption up across most teams. Engineering and Sales are leading growth, while Operations needs attention after a drop in adoption. ${escalatedApprovals.length} requests are waiting on your sign-off, and consolidating overlapping tools could free up meaningful budget.',
     );
