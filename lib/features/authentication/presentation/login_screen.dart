@@ -8,6 +8,7 @@ import '../../../core/routes/route_names.dart';
 import '../../../shared/widgets/primary_button.dart';
 import '../cubit/auth_cubit.dart';
 import '../cubit/auth_state.dart';
+import '../../roles/ceo/more/profile_cubit.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -148,7 +149,8 @@ class _LoginScreenState extends State<LoginScreen>
                     Positioned(
                       top: -80 + 30 * t,
                       right: -60 - 20 * t,
-                      child: _glowBlob(size.width * 0.6, primary.withOpacity(0.18)),
+                      child: _glowBlob(
+                          size.width * 0.6, primary.withOpacity(0.18)),
                     ),
                     Positioned(
                       bottom: -100 - 30 * t,
@@ -169,6 +171,12 @@ class _LoginScreenState extends State<LoginScreen>
             child: BlocConsumer<AuthCubit, AuthState>(
               listener: (context, state) {
                 if (state is AuthAuthenticated) {
+                  context.read<ProfileCubit>().loadFromAuthResponse({
+                    'name': state.user.name,
+                    'email': state.user.email,
+                    'role': state.user.role.name,
+                    'organization': state.user.orgName,
+                  });
                   Navigator.of(context)
                       .pushReplacementNamed(RouteNames.orgSelection);
                 }
@@ -219,7 +227,8 @@ class _LoginScreenState extends State<LoginScreen>
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(20),
                               child: BackdropFilter(
-                                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                                filter:
+                                    ImageFilter.blur(sigmaX: 12, sigmaY: 12),
                                 child: Container(
                                   padding: const EdgeInsets.all(AppSpacing.lg),
                                   decoration: BoxDecoration(
@@ -395,8 +404,7 @@ class _LoginScreenState extends State<LoginScreen>
                                   label: 'Continue with SSO',
                                   loading: _ssoLoading,
                                   onPressed: _handleSsoSignIn,
-                                  backgroundColor:
-                                      primary.withOpacity(0.12),
+                                  backgroundColor: primary.withOpacity(0.12),
                                   foregroundColor: primary,
                                   borderColor: primary.withOpacity(0.35),
                                   icon: Icon(Icons.badge_outlined,

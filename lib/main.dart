@@ -29,7 +29,7 @@ class RunrateApp extends StatelessWidget {
         BlocProvider(create: (_) => ThemeCubit(initialMode: initialThemeMode)),
         BlocProvider(create: (_) => AuthCubit(getIt<MockAuthRepository>())),
         BlocProvider(create: (_) => NotificationsCubit()),
-        BlocProvider(create: (_) => ProfileCubit()),
+        BlocProvider(create: (_) => ProfileCubit()..hydrate()),
       ],
       child: BlocBuilder<ThemeCubit, ThemeMode>(
         builder: (context, mode) {

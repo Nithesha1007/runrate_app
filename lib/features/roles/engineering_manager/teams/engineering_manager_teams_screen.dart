@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -8,11 +9,26 @@ import '../../../../core/theme/app_colors_data.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
+import '../../ceo/more/profile_cubit.dart';
 import 'engineering_manager_teams_cubit.dart';
 
 /// Engineering Manager · Team
 ///
-/// v3 changes:
+/// v4 changes:
+///  - Removed the KPI health-breakdown card from the team hero (Delivery /
+///    AI Adoption / Productivity / Budget bars) for a cleaner, less
+///    cluttered hero. The hero now carries an ambient rotating glow instead.
+///  - Member card: productivity badge and the "View details" link now sit
+///    on the same row (no separate stacked row), and there's no
+///    capacity/workload bar on the card — that detail lives on the
+///    Employee Detail screen only.
+///  - Search bar rebuilt with a glassmorphic shell and an animated
+///    conic-gradient glow border that activates on focus.
+///  - Filter chip row rebuilt with gradient-filled selected state, glow
+///    shadow, and a small leading icon per filter for faster scanning.
+///  - Status pill now uses a soft pulsing dot instead of a static one.
+///
+/// v3 changes (carried over):
 ///  - Photo avatars everywhere (member cards, detail hero) instead of
 ///    letter-initial circles. Uses generated placeholder photos
 ///    (pravatar.cc, seeded by name hash so it's stable per person) with a
@@ -23,10 +39,6 @@ import 'engineering_manager_teams_cubit.dart';
 ///  - Header no longer shows a close (X) button — this is a bottom-nav TAB
 ///    (Teams stays selected), not a pushed modal, so it now matches the
 ///    Home-screen header pattern instead.
-///  - Hero card upgraded: team name, status pill, productivity + budget
-///    pills, and a compact 4-category health breakdown row.
-///  - Member cards upgraded: productivity score + workload/capacity bar
-///    added alongside the existing adoption ring / tool / sprint-pts row.
 ///  - Employee Detail screen upgraded: Productivity, Workload, and Budget
 ///    sections added (data already exists on `TeamMember`), and the action
 ///    row now offers the four manager actions instead of Message/Assign.
@@ -123,6 +135,129 @@ Route<T> _slideFadeRoute<T>(Widget page) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// Ambient pulsing dot — used inside the hero status pill.
+// ─────────────────────────────────────────────────────────────────────────
+
+class _PulseDot extends StatefulWidget {
+  const _PulseDot({required this.color});
+
+  final Color color;
+
+  @override
+  State<_PulseDot> createState() => _PulseDotState();
+}
+
+class _PulseDotState extends State<_PulseDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final t = _controller.value;
+        return SizedBox(
+          width: 16,
+          height: 16,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 6 + t * 10,
+                height: 6 + t * 10,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: widget.color.withValues(alpha: (1 - t) * 0.55),
+                ),
+              ),
+              Container(
+                width: 6,
+                height: 6,
+                decoration:
+                    BoxDecoration(color: widget.color, shape: BoxShape.circle),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Ambient rotating glow wrapper — used behind the hero card for a subtle
+// futuristic "alive" feel without being distracting.
+// ─────────────────────────────────────────────────────────────────────────
+
+class _AmbientGlow extends StatefulWidget {
+  const _AmbientGlow({required this.child, required this.colors, this.radius = 26});
+
+  final Widget child;
+  final AppColorsData colors;
+  final double radius;
+
+  @override
+  State<_AmbientGlow> createState() => _AmbientGlowState();
+}
+
+class _AmbientGlowState extends State<_AmbientGlow>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 7),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final angle = _controller.value * 2 * math.pi;
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(widget.radius),
+            boxShadow: [
+              BoxShadow(
+                color: widget.colors.primary
+                    .withValues(alpha: 0.26 + 0.08 * math.sin(angle)),
+                blurRadius: 26,
+                spreadRadius: 0,
+                offset: Offset(5 * math.cos(angle), 5 * math.sin(angle)),
+              ),
+              BoxShadow(
+                color: widget.colors.secondary
+                    .withValues(alpha: 0.20 + 0.08 * math.cos(angle)),
+                blurRadius: 30,
+                spreadRadius: 0,
+                offset: Offset(-5 * math.cos(angle), -5 * math.sin(angle)),
+              ),
+            ],
+          ),
+          child: child,
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // Photo avatar — replaces letter-initial circles everywhere. Falls back to
 // gradient initials automatically if the image can't load.
 // ─────────────────────────────────────────────────────────────────────────
@@ -161,15 +296,30 @@ class _ProfileAvatar extends StatelessWidget {
     required this.name,
     this.size = 44,
     this.ringColor,
+    this.imageUrl,
   });
 
   final String name;
   final double size;
   final Color? ringColor;
 
+  /// Real profile photo URL (e.g. from the app's ProfileCubit/session).
+  /// When provided, this is used instead of the generated placeholder
+  /// photo — pass this for the logged-in manager's own avatar so it shows
+  /// their actual profile picture from the existing Profile screen.
+  final String? imageUrl;
+
   @override
   Widget build(BuildContext context) {
     final color = _avatarColorFor(name);
+    final resolvedUrl = imageUrl ?? _avatarUrlFor(name);
+    final image = imageUrl != null &&
+            (imageUrl!.startsWith('http://') ||
+                imageUrl!.startsWith('https://'))
+        ? NetworkImage(resolvedUrl)
+        : imageUrl != null
+            ? FileImage(File(resolvedUrl)) as ImageProvider
+            : NetworkImage(resolvedUrl);
     return Container(
       width: size,
       height: size,
@@ -180,8 +330,8 @@ class _ProfileAvatar extends StatelessWidget {
             ringColor == null ? null : Border.all(color: ringColor!, width: 2),
       ),
       child: ClipOval(
-        child: Image.network(
-          _avatarUrlFor(name),
+        child: Image(
+          image: image,
           width: size,
           height: size,
           fit: BoxFit.cover,
@@ -398,7 +548,8 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final managerName = overview?.managerName ?? 'Manager';
+    final profile = context.watch<ProfileCubit>().state;
+    final managerName = profile.name.isNotEmpty ? profile.name : 'Manager';
     final teamName = overview?.teamName ?? 'Team';
     final hasUnread = overview?.hasUnreadNotifications ?? false;
 
@@ -407,7 +558,8 @@ class _Header extends StatelessWidget {
           AppSpacing.xl, AppSpacing.md, AppSpacing.xl, 0),
       child: Row(
         children: [
-          _ProfileAvatar(name: managerName, size: 44),
+          _ProfileAvatar(
+              name: managerName, size: 44, imageUrl: profile.avatarUrl),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
@@ -459,8 +611,9 @@ class _Header extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Team hero card — team name, status pill, on-track ring, spend/members,
-// metric pills, and a compact 4-category health breakdown row.
+// Team hero card — team name, status pill, on-track ring, and spend/
+// members. The KPI health-breakdown card has been removed for a cleaner
+// hero; a subtle ambient glow gives it presence instead.
 // ─────────────────────────────────────────────────────────────────────────
 
 class _TeamHeroCard extends StatelessWidget {
@@ -484,170 +637,96 @@ class _TeamHeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = _statusStyle(colors);
 
-    return Container(
-      margin: const EdgeInsets.only(top: AppSpacing.lg),
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            colors.primary,
-            colors.secondary,
-            colors.primary.withValues(alpha: 0.85),
-          ],
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(overview.teamName,
-                    style: AppTypography.h3(Colors.white),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-              ),
-              _StatusPill(label: status.label, color: status.color),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _AnimatedOnTrackRing(
-                  percent: overview.onTrackPercent, color: Colors.white),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${overview.onTrackPercent}% on track',
-                      style: AppTypography.h2(Colors.white),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Icon(Icons.groups_rounded,
-                            size: 14,
-                            color: Colors.white.withValues(alpha: 0.85)),
-                        const SizedBox(width: 4),
-                        _AnimatedCounter(
-                          value: overview.totalMembers,
-                          style: AppTypography.caption(
-                                  Colors.white.withValues(alpha: 0.85))
-                              .copyWith(fontWeight: FontWeight.w600),
-                          suffix: ' members',
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        Icon(Icons.currency_rupee_rounded,
-                            size: 14,
-                            color: Colors.white.withValues(alpha: 0.85)),
-                        Text(
-                          _formatAmount(overview.totalMonthlyAiSpend),
-                          style: AppTypography.caption(
-                                  Colors.white.withValues(alpha: 0.85))
-                              .copyWith(fontWeight: FontWeight.w600),
-                        ),
-                        Text(
-                          '/mo spend',
-                          style: AppTypography.caption(
-                              Colors.white.withValues(alpha: 0.7)),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Row(
-            children: [
-              Expanded(
-                child: _HeroMetricPill(
-                    label: 'Adoption',
-                    value: '${overview.avgAiAdoptionPercent}%'),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: _HeroMetricPill(
-                    label: 'Productivity',
-                    value: '${overview.productivityScore}'),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: _HeroMetricPill(
-                  label: 'Budget left',
-                  value: _formatAmount(overview.budgetRemaining),
-                  icon: Icons.currency_rupee_rounded,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.sm + 2),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(16),
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.lg),
+      child: _AmbientGlow(
+        colors: colors,
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                colors.primary,
+                colors.secondary,
+                colors.primary.withValues(alpha: 0.85),
+              ],
             ),
-            child: Column(
-              children: [
-                for (final cat in overview.healthBreakdown)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 3),
-                    child: Row(
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(overview.teamName,
+                        style: AppTypography.h3(Colors.white),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                  _StatusPill(label: status.label, color: status.color),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  _AnimatedOnTrackRing(
+                      percent: overview.onTrackPercent, color: Colors.white),
+                  const SizedBox(width: AppSpacing.lg),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SizedBox(
-                          width: 84,
-                          child: Text(cat.name,
+                        Text(
+                          '${overview.onTrackPercent}% on track',
+                          style: AppTypography.h2(Colors.white),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Icon(Icons.groups_rounded,
+                                size: 14,
+                                color: Colors.white.withValues(alpha: 0.85)),
+                            const SizedBox(width: 4),
+                            _AnimatedCounter(
+                              value: overview.totalMembers,
                               style: AppTypography.caption(
-                                  Colors.white.withValues(alpha: 0.85)),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis),
-                        ),
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(999),
-                            child: TweenAnimationBuilder<double>(
-                              tween: Tween(begin: 0, end: cat.score / 100),
-                              duration: const Duration(milliseconds: 800),
-                              curve: Curves.easeOutCubic,
-                              builder: (context, v, _) =>
-                                  LinearProgressIndicator(
-                                value: v,
-                                minHeight: 6,
-                                backgroundColor:
-                                    Colors.white.withValues(alpha: 0.18),
-                                valueColor:
-                                    const AlwaysStoppedAnimation(Colors.white),
-                              ),
+                                      Colors.white.withValues(alpha: 0.85))
+                                  .copyWith(fontWeight: FontWeight.w600),
+                              suffix: ' members',
                             ),
-                          ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          width: 26,
-                          child: Text('${cat.score}',
-                              textAlign: TextAlign.end,
-                              style: AppTypography.caption(Colors.white)
-                                  .copyWith(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Icon(Icons.currency_rupee_rounded,
+                                size: 14,
+                                color: Colors.white.withValues(alpha: 0.85)),
+                            Text(
+                              _formatAmount(overview.totalMonthlyAiSpend),
+                              style: AppTypography.caption(
+                                      Colors.white.withValues(alpha: 0.85))
+                                  .copyWith(fontWeight: FontWeight.w600),
+                            ),
+                            Text(
+                              '/mo spend',
+                              style: AppTypography.caption(
+                                  Colors.white.withValues(alpha: 0.7)),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -675,12 +754,8 @@ class _StatusPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 6),
+          _PulseDot(color: color),
+          const SizedBox(width: 2),
           Text(label, style: AppTypography.caption(Colors.white)),
         ],
       ),
@@ -690,11 +765,10 @@ class _StatusPill extends StatelessWidget {
 
 /// Labels never get cut off — single line, ellipsis, breathing room.
 class _HeroMetricPill extends StatelessWidget {
-  const _HeroMetricPill({required this.label, required this.value, this.icon});
+  const _HeroMetricPill({required this.label, required this.value});
 
   final String label;
   final String value;
-  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -711,9 +785,6 @@ class _HeroMetricPill extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (icon != null) ...[
-                Icon(icon, size: 13, color: Colors.white),
-              ],
               Flexible(
                 child: Text(
                   value,
@@ -826,7 +897,8 @@ class _AnimatedCounter extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Search field
+// Search field — glassmorphic shell with an animated conic-gradient glow
+// border that spins in on focus.
 // ─────────────────────────────────────────────────────────────────────────
 
 class _ThemedSearchField extends StatefulWidget {
@@ -844,83 +916,117 @@ class _ThemedSearchField extends StatefulWidget {
   State<_ThemedSearchField> createState() => _ThemedSearchFieldState();
 }
 
-class _ThemedSearchFieldState extends State<_ThemedSearchField> {
+class _ThemedSearchFieldState extends State<_ThemedSearchField>
+    with SingleTickerProviderStateMixin {
   final _focusNode = FocusNode();
   bool _focused = false;
+  late final AnimationController _glowController = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 3),
+  )..repeat();
 
   @override
   void initState() {
     super.initState();
     _focusNode
         .addListener(() => setState(() => _focused = _focusNode.hasFocus));
+    widget.controller.addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
     _focusNode.dispose();
+    _glowController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = widget.colors;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOut,
-      height: 52,
-      decoration: BoxDecoration(
-        color: colors.surfaceElevated,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: _focused ? colors.primary : colors.border,
-          width: _focused ? 1.6 : 1,
-        ),
-        boxShadow: _focused
-            ? [
-                BoxShadow(
-                  color: colors.primary.withValues(alpha: 0.14),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : null,
-      ),
-      child: TextField(
-        controller: widget.controller,
-        focusNode: _focusNode,
-        onChanged: widget.onChanged,
-        style: AppTypography.body(colors.textPrimary),
-        cursorColor: colors.primary,
-        decoration: InputDecoration(
-          hintText: 'Search by name or role',
-          hintStyle: AppTypography.body(colors.textSecondary),
-          prefixIcon: Icon(
-            Icons.search_rounded,
-            color: _focused ? colors.primary : colors.textSecondary,
-            size: 20,
+    return AnimatedBuilder(
+      animation: _glowController,
+      builder: (context, _) {
+        final angle = _glowController.value * 2 * math.pi;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOut,
+          padding: EdgeInsets.all(_focused ? 1.6 : 1),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            gradient: _focused
+                ? SweepGradient(
+                    transform: GradientRotation(angle),
+                    colors: [
+                      colors.primary,
+                      colors.secondary,
+                      colors.primary.withValues(alpha: 0.35),
+                      colors.secondary.withValues(alpha: 0.6),
+                      colors.primary,
+                    ],
+                  )
+                : null,
+            color: _focused ? null : colors.border,
+            boxShadow: _focused
+                ? [
+                    BoxShadow(
+                      color: colors.primary.withValues(alpha: 0.28),
+                      blurRadius: 20,
+                      spreadRadius: 0,
+                    ),
+                  ]
+                : null,
           ),
-          suffixIcon: widget.controller.text.isEmpty
-              ? null
-              : IconButton(
-                  icon: Icon(Icons.close_rounded,
-                      size: 18, color: colors.textSecondary),
-                  onPressed: () {
-                    widget.controller.clear();
-                    widget.onChanged('');
-                  },
+          child: Container(
+            height: 52,
+            decoration: BoxDecoration(
+              color: colors.surfaceElevated,
+              borderRadius: BorderRadius.circular(16.4),
+            ),
+            child: TextField(
+              controller: widget.controller,
+              focusNode: _focusNode,
+              onChanged: widget.onChanged,
+              style: AppTypography.body(colors.textPrimary),
+              cursorColor: colors.primary,
+              decoration: InputDecoration(
+                hintText: 'Search by name or role',
+                hintStyle: AppTypography.body(colors.textSecondary),
+                prefixIcon: AnimatedScale(
+                  scale: _focused ? 1.15 : 1.0,
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOut,
+                  child: Icon(
+                    Icons.search_rounded,
+                    color: _focused ? colors.primary : colors.textSecondary,
+                    size: 20,
+                  ),
                 ),
-          border: InputBorder.none,
-          isDense: true,
-          contentPadding:
-              const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
-        ),
-      ),
+                suffixIcon: widget.controller.text.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: Icon(Icons.close_rounded,
+                            size: 18, color: colors.textSecondary),
+                        onPressed: () {
+                          widget.controller.clear();
+                          widget.onChanged('');
+                        },
+                      ),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Filter chip row — adoption/attention filters + presence filters.
+// Filter chip row — gradient-filled selected state with glow shadow and a
+// small leading icon per filter.
 // ─────────────────────────────────────────────────────────────────────────
 
 class _FilterChipRow extends StatelessWidget {
@@ -931,44 +1037,71 @@ class _FilterChipRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final chips = <(MemberFilter, String, int)>[
-      (MemberFilter.all, 'All', data.allMembers.length),
-      (MemberFilter.presenceActive, 'Active', data.presenceActiveCount),
-      (MemberFilter.highAdoption, 'High adoption', data.highAdoptionCount),
+    final chips = <(MemberFilter, String, int, IconData)>[
+      (MemberFilter.all, 'All', data.allMembers.length,
+          Icons.grid_view_rounded),
+      (MemberFilter.presenceActive, 'Active', data.presenceActiveCount,
+          Icons.bolt_rounded),
+      (MemberFilter.highAdoption, 'High adoption', data.highAdoptionCount,
+          Icons.trending_up_rounded),
       (
         MemberFilter.needsAttention,
         'Needs attention',
-        data.needsAttentionCount
+        data.needsAttentionCount,
+        Icons.warning_amber_rounded,
       ),
-      (MemberFilter.blocked, 'Blocked', data.blockedCount),
+      (MemberFilter.blocked, 'Blocked', data.blockedCount,
+          Icons.block_rounded),
     ];
 
     return SizedBox(
-      height: 36,
+      height: 40,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: chips.length,
         separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
         itemBuilder: (context, index) {
-          final (filter, label, count) = chips[index];
+          final (filter, label, count, icon) = chips[index];
           final selected = data.activeFilter == filter;
           return _ScaleOnTap(
             onTap: () => context
                 .read<EngineeringManagerTeamsCubit>()
                 .applyFilter(filter),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
               padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.md, vertical: AppSpacing.sm),
               decoration: BoxDecoration(
-                color: selected ? colors.primary : colors.surfaceElevated,
+                gradient: selected
+                    ? LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [colors.primary, colors.secondary],
+                      )
+                    : null,
+                color: selected ? null : colors.surfaceElevated,
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(
-                    color: selected ? colors.primary : colors.border),
+                  color: selected ? Colors.transparent : colors.border,
+                ),
+                boxShadow: selected
+                    ? [
+                        BoxShadow(
+                          color: colors.primary.withValues(alpha: 0.35),
+                          blurRadius: 16,
+                          offset: const Offset(0, 5),
+                        ),
+                      ]
+                    : null,
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  Icon(icon,
+                      size: 14,
+                      color: selected ? Colors.white : colors.textSecondary),
+                  const SizedBox(width: 6),
                   Text(
                     label,
                     style: AppTypography.caption(
@@ -976,12 +1109,13 @@ class _FilterChipRow extends StatelessWidget {
                         .copyWith(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(width: 6),
-                  Container(
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
                     padding:
                         const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                     decoration: BoxDecoration(
                       color: selected
-                          ? Colors.white.withValues(alpha: 0.22)
+                          ? Colors.white.withValues(alpha: 0.24)
                           : colors.border,
                       borderRadius: BorderRadius.circular(999),
                     ),
@@ -1003,9 +1137,10 @@ class _FilterChipRow extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Member card — photo avatar with status-colored ring, productivity score,
-// and an explicit workload/capacity bar in addition to the existing
-// adoption ring / primary tool / sprint-pts row.
+// Member card — photo avatar with status-colored ring, adoption ring /
+// primary tool / sprint-pts row, and a single bottom row that carries both
+// the productivity badge and the "View details" link. No capacity/workload
+// bar here — that detail lives on the Employee Detail screen.
 // ─────────────────────────────────────────────────────────────────────────
 
 class _MemberCard extends StatelessWidget {
@@ -1016,16 +1151,9 @@ class _MemberCard extends StatelessWidget {
   final AppColorsData colors;
   final VoidCallback onTap;
 
-  Color _capacityColor(AppColorsData colors, int percent) {
-    if (percent >= 100) return colors.danger;
-    if (percent >= 85) return colors.warning;
-    return colors.success;
-  }
-
   @override
   Widget build(BuildContext context) {
     final statusInfo = _statusInfo(member.engagementStatus, colors);
-    final capacityColor = _capacityColor(colors, member.capacityPercent);
 
     return _ScaleOnTap(
       onTap: onTap,
@@ -1108,10 +1236,17 @@ class _MemberCard extends StatelessWidget {
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm, vertical: 3),
+                      horizontal: AppSpacing.sm, vertical: 5),
                   decoration: BoxDecoration(
-                    color: colors.primaryLight,
+                    gradient: LinearGradient(
+                      colors: [
+                        colors.primary.withValues(alpha: 0.18),
+                        colors.secondary.withValues(alpha: 0.10),
+                      ],
+                    ),
                     borderRadius: BorderRadius.circular(999),
+                    border:
+                        Border.all(color: colors.primary.withValues(alpha: 0.25)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1126,40 +1261,17 @@ class _MemberCard extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                Text('Capacity ${member.capacityPercent}%',
-                    style: AppTypography.caption(colors.textSecondary)),
-              ],
-            ),
-            const SizedBox(height: 6),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: TweenAnimationBuilder<double>(
-                tween: Tween(
-                    begin: 0,
-                    end: (member.capacityPercent / 100).clamp(0, 1.3)),
-                duration: const Duration(milliseconds: 700),
-                curve: Curves.easeOutCubic,
-                builder: (context, v, _) => LinearProgressIndicator(
-                  value: v.clamp(0, 1),
-                  minHeight: 6,
-                  backgroundColor: colors.border,
-                  valueColor: AlwaysStoppedAnimation(capacityColor),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('View details',
+                        style: AppTypography.caption(colors.primary)
+                            .copyWith(fontWeight: FontWeight.w700)),
+                    Icon(Icons.chevron_right_rounded,
+                        size: 16, color: colors.primary),
+                  ],
                 ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('View profile',
-                      style: AppTypography.caption(colors.primary)
-                          .copyWith(fontWeight: FontWeight.w700)),
-                  Icon(Icons.chevron_right_rounded,
-                      size: 16, color: colors.primary),
-                ],
-              ),
+              ],
             ),
           ],
         ),
@@ -1539,7 +1651,8 @@ class _BudgetSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final remaining = (member.allocatedBudget - member.monthlyAiSpend)
-        .clamp(0, double.infinity);
+        .clamp(0, double.infinity)
+        .toDouble();
     return _SectionCard(
       title: 'Budget',
       colors: colors,
@@ -1560,7 +1673,7 @@ class _BudgetSection extends StatelessWidget {
           Expanded(
               child: _StatBlock(
                   label: 'Remaining',
-                  value: _formatAmount(remaining as double),
+                  value: _formatAmount(remaining),
                   icon: Icons.currency_rupee_rounded,
                   colors: colors)),
         ],

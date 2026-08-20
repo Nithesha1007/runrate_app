@@ -1,4 +1,5 @@
-﻿import 'dart:ui';
+﻿import 'dart:io';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -6,6 +7,7 @@ import 'package:runrate/features/roles/engineering_manager/ai/engineering_manage
 import 'package:runrate/features/roles/engineering_manager/approvals/engineering_manager_approvals_screen.dart';
 import 'package:runrate/features/roles/engineering_manager/home/engineering_manager_home_cubit.dart';
 import 'package:runrate/features/roles/engineering_manager/teams/engineering_manager_teams_screen.dart';
+import 'package:runrate/features/roles/ceo/more/profile_cubit.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/routes/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -93,7 +95,6 @@ class _EngineeringManagerHomeViewState
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _HomeHeader(
-                            managerName: data.managerName,
                             teamName: data.teamName,
                             todayLabel: data.todayLabel,
                             greeting: data.greeting,
@@ -336,14 +337,12 @@ class _ShimmerCardState extends State<_ShimmerCard>
 
 class _HomeHeader extends StatelessWidget {
   const _HomeHeader({
-    required this.managerName,
     required this.teamName,
     required this.todayLabel,
     required this.greeting,
     required this.hasUnread,
   });
 
-  final String managerName;
   final String teamName;
   final String todayLabel;
   final String greeting;
@@ -352,6 +351,14 @@ class _HomeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
+    final profile = context.watch<ProfileCubit>().state;
+    final managerName = profile.name.isNotEmpty ? profile.name : 'Manager';
+    final avatarUrl = profile.avatarUrl;
+    final imageProvider = avatarUrl == null || avatarUrl.isEmpty
+        ? null
+        : (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')
+            ? NetworkImage(avatarUrl)
+            : FileImage(File(avatarUrl)) as ImageProvider);
     return Row(
       children: [
         Expanded(
@@ -363,13 +370,16 @@ class _HomeHeader extends StatelessWidget {
                 child: CircleAvatar(
                   radius: 22,
                   backgroundColor: colors.primaryLight,
+                  backgroundImage: imageProvider,
                   child: Text(
-                    managerName
-                        .split(' ')
-                        .map((e) => e.isNotEmpty ? e[0] : '')
-                        .take(2)
-                        .join()
-                        .toUpperCase(),
+                    imageProvider == null
+                        ? managerName
+                            .split(' ')
+                            .map((e) => e.isNotEmpty ? e[0] : '')
+                            .take(2)
+                            .join()
+                            .toUpperCase()
+                        : '',
                     style: AppTypography.h3(colors.primary),
                   ),
                 ),
@@ -783,7 +793,8 @@ class _StatChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text('$label: ',
-              style: AppTypography.caption(Colors.white.withValues(alpha: 0.8))),
+              style:
+                  AppTypography.caption(Colors.white.withValues(alpha: 0.8))),
           Text(value,
               style: AppTypography.caption(Colors.white)
                   .copyWith(fontWeight: FontWeight.w700)),
@@ -899,8 +910,8 @@ class _QuickActionsGrid extends StatelessWidget {
                     Expanded(
                       child: Text(
                         item.title,
-                        style: AppTypography.body(colors.textPrimary)
-                            .copyWith(fontWeight: FontWeight.w600, height: 1.15),
+                        style: AppTypography.body(colors.textPrimary).copyWith(
+                            fontWeight: FontWeight.w600, height: 1.15),
                         maxLines: 2,
                         softWrap: true,
                         overflow: TextOverflow.ellipsis,
@@ -1063,8 +1074,7 @@ class _BudgetHealthCard extends StatelessWidget {
             child: SizedBox(
               height: 14,
               child: TweenAnimationBuilder<double>(
-                tween:
-                    Tween(begin: 0.0, end: data.utilization.clamp(0.0, 1.0)),
+                tween: Tween(begin: 0.0, end: data.utilization.clamp(0.0, 1.0)),
                 duration: const Duration(milliseconds: 900),
                 curve: Curves.easeOutCubic,
                 builder: (context, value, _) => Row(
@@ -1397,8 +1407,7 @@ class _PendingRequestCardState extends State<_PendingRequestCard>
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
                         Text('Requested ${request.requestDate}',
-                            style:
-                                AppTypography.caption(colors.textSecondary)),
+                            style: AppTypography.caption(colors.textSecondary)),
                       ],
                     ),
                   ),

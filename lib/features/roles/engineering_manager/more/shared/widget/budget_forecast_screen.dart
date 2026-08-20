@@ -1,12 +1,23 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:runrate/core/constants/app_spacing.dart';
 import 'package:runrate/core/theme/app_colors.dart';
+import 'package:runrate/core/theme/app_colors_data.dart';
 import 'package:runrate/core/theme/app_typography.dart';
 import 'package:runrate/features/roles/engineering_manager/more/shared/widget/em_screen_scaffold.dart';
 import '../em_shared_widget.dart';
 import 'package:runrate/shared/widgets/staggered.dart';
 
-/// More → Budget & Forecast
+/// More → Budget & Forecast (Premium / Futuristic rebuild)
+///
+/// Keeps `EmGradientHero`, `RupeeAmount`, `StatusPill`, `StatusTone` from
+/// `em_shared_widget.dart` since those are shared across other EM screens
+/// and already carry the hero gradient — redesigning those here would
+/// desync the look everywhere else they're used. Everything below that
+/// (trend card, forecast card, per-tool card) is rebuilt local to this
+/// file with a glass / neon-accent treatment matching the new
+/// Notifications screen.
 ///
 /// TODO — IMPORTANT: the numbers on this screen (`_currentSpend`,
 /// `_allocatedBudget`, `_monthlyBurn`, `_monthlyHistory`,
@@ -25,10 +36,12 @@ class BudgetForecastScreen extends StatefulWidget {
 }
 
 class _ToolSpend {
-  const _ToolSpend(this.name, this.monthlyCost, this.percentOfBudget);
+  const _ToolSpend(
+      this.name, this.monthlyCost, this.percentOfBudget, this.accent);
   final String name;
   final double monthlyCost;
   final double percentOfBudget;
+  final Color Function(AppColorsData) accent;
 }
 
 class _BudgetForecastScreenState extends State<BudgetForecastScreen>
@@ -48,11 +61,11 @@ class _BudgetForecastScreenState extends State<BudgetForecastScreen>
     112000,
     118000
   ];
-  final List<_ToolSpend> _toolBreakdown = const [
-    _ToolSpend('GitHub Copilot', 62000, 17.4),
-    _ToolSpend('Claude', 48000, 13.5),
-    _ToolSpend('ChatGPT', 41000, 11.5),
-    _ToolSpend('Gemini', 19000, 5.3),
+  final List<_ToolSpend> _toolBreakdown = [
+    _ToolSpend('GitHub Copilot', 62000, 17.4, (c) => c.primary),
+    _ToolSpend('Claude', 48000, 13.5, (c) => c.secondary),
+    _ToolSpend('ChatGPT', 41000, 11.5, (c) => c.info),
+    _ToolSpend('Gemini', 19000, 5.3, (c) => c.warning),
   ];
 
   @override
@@ -129,11 +142,16 @@ class _BudgetForecastScreenState extends State<BudgetForecastScreen>
             controller: _entrance,
             child: _ToolBreakdownCard(tools: _toolBreakdown),
           ),
+          const SizedBox(height: AppSpacing.xl),
         ],
       ),
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Hero — unchanged shared widget, just fed the same data
+// ─────────────────────────────────────────────────────────────────────────
 
 class _BudgetHero extends StatelessWidget {
   const _BudgetHero({
@@ -157,7 +175,7 @@ class _BudgetHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final remaining =
-        ((allocatedBudget - currentSpend).clamp(0, double.infinity)) as double;
+        (allocatedBudget - currentSpend).clamp(0, double.infinity).toDouble();
     return EmGradientHero(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,6 +254,101 @@ class _HeroStat extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Shared glass-card shell + section label, matching the Notifications look
+// ─────────────────────────────────────────────────────────────────────────
+
+class _GlassCard extends StatelessWidget {
+  const _GlassCard({
+    required this.colors,
+    required this.title,
+    required this.accent,
+    required this.child,
+    this.trailing,
+  });
+
+  final AppColorsData colors;
+  final String title;
+  final Color accent;
+  final Widget child;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding:
+              const EdgeInsets.only(left: AppSpacing.xs, bottom: AppSpacing.sm),
+          child: Row(
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: accent,
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withOpacity(0.7),
+                      blurRadius: 8,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                title.toUpperCase(),
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.4,
+                ),
+              ),
+              const Spacer(),
+              if (trailing != null) trailing!,
+            ],
+          ),
+        ),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                colors.textPrimary.withOpacity(0.05),
+                colors.textPrimary.withOpacity(0.02),
+              ],
+            ),
+            border: Border.all(
+              color: colors.textSecondary.withOpacity(0.10),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: accent.withOpacity(0.05),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Burn rate trend — glowing gradient bars
+// ─────────────────────────────────────────────────────────────────────────
+
 class _BurnRateTrendCard extends StatelessWidget {
   const _BurnRateTrendCard({required this.history});
   final List<double> history;
@@ -246,65 +359,124 @@ class _BurnRateTrendCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     final maxValue = history.reduce((a, b) => a > b ? a : b);
+    final momChange = ((history.last - history[history.length - 2]) /
+        history[history.length - 2] *
+        100);
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: colors.surfaceElevated,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return _GlassCard(
+      colors: colors,
+      title: 'Burn rate — last 6 months',
+      accent: colors.primary,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text('Burn rate — last 6 months',
-              style: AppTypography.h3(colors.textPrimary)),
-          const SizedBox(height: AppSpacing.lg),
-          SizedBox(
-            height: 120,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                for (var i = 0; i < history.length; i++)
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TweenAnimationBuilder<double>(
-                            tween: Tween(begin: 0, end: history[i] / maxValue),
-                            duration: Duration(milliseconds: 500 + i * 80),
-                            curve: Curves.easeOutCubic,
-                            builder: (context, value, _) {
-                              return Container(
-                                height: 84 * value,
-                                decoration: BoxDecoration(
-                                  color: i == history.length - 1
-                                      ? colors.primary
-                                      : colors.primary.withValues(alpha: 0.35),
-                                  borderRadius: const BorderRadius.vertical(
-                                      top: Radius.circular(6)),
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 6),
-                          Text(_months[i],
-                              style:
-                                  AppTypography.caption(colors.textSecondary)),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
+          Icon(
+            momChange >= 0
+                ? Icons.arrow_upward_rounded
+                : Icons.arrow_downward_rounded,
+            size: 13,
+            color: momChange >= 0 ? colors.warning : colors.info,
+          ),
+          const SizedBox(width: 2),
+          Text(
+            '${momChange.abs().toStringAsFixed(0)}% MoM',
+            style: TextStyle(
+              color: momChange >= 0 ? colors.warning : colors.info,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
       ),
+      child: SizedBox(
+        height: 132,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            for (var i = 0; i < history.length; i++)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text(
+                        _compact(history[i]),
+                        style: TextStyle(
+                          color: i == history.length - 1
+                              ? colors.primary
+                              : colors.textSecondary,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0, end: history[i] / maxValue),
+                        duration: Duration(milliseconds: 550 + i * 90),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, value, _) {
+                          final isLast = i == history.length - 1;
+                          return Container(
+                            height: 84 * value,
+                            decoration: BoxDecoration(
+                              borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(8)),
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: isLast
+                                    ? [
+                                        colors.primary,
+                                        colors.primary.withOpacity(0.55),
+                                      ]
+                                    : [
+                                        colors.primary.withOpacity(0.28),
+                                        colors.primary.withOpacity(0.12),
+                                      ],
+                              ),
+                              boxShadow: isLast
+                                  ? [
+                                      BoxShadow(
+                                        color: colors.primary.withOpacity(0.5),
+                                        blurRadius: 12,
+                                        spreadRadius: 0.5,
+                                      ),
+                                    ]
+                                  : [],
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      Text(_months[i],
+                          style: TextStyle(
+                            color: colors.textSecondary,
+                            fontSize: 11,
+                            fontWeight: i == history.length - 1
+                                ? FontWeight.w700
+                                : FontWeight.w400,
+                          )),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
+
+  String _compact(double v) {
+    if (v >= 100000) return '${(v / 100000).toStringAsFixed(1)}L';
+    if (v >= 1000) return '${(v / 1000).toStringAsFixed(0)}K';
+    return v.toStringAsFixed(0);
+  }
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Quarter forecast — radial progress ring + gradient callout
+// ─────────────────────────────────────────────────────────────────────────
 
 class _QuarterForecastCard extends StatelessWidget {
   const _QuarterForecastCard({
@@ -320,38 +492,61 @@ class _QuarterForecastCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: colors.surfaceElevated,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+    final ringColor = quarterPercent >= 100 ? colors.warning : colors.info;
+
+    return _GlassCard(
+      colors: colors,
+      title: 'Quarter forecast',
+      accent: colors.info,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Quarter Forecast', style: AppTypography.h3(colors.textPrimary)),
-          const SizedBox(height: AppSpacing.sm),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: (quarterPercent / 100).clamp(0, 1)),
+                duration: const Duration(milliseconds: 900),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, _) => CustomPaint(
+                  size: const Size(72, 72),
+                  painter: _RingPainter(
+                    progress: value,
+                    trackColor: colors.textSecondary.withOpacity(0.10),
+                    progressColor: ringColor,
+                  ),
+                  child: SizedBox(
+                    width: 72,
+                    height: 72,
+                    child: Center(
+                      child: Text(
+                        '${quarterPercent.toStringAsFixed(0)}%',
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.lg),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Projected spend',
-                        style: AppTypography.caption(colors.textSecondary)),
+                        style: TextStyle(
+                            color: colors.textSecondary, fontSize: 12)),
                     RupeeAmount(
                         amount: forecastedQuarter,
-                        style: AppTypography.bodyLarge(colors.textPrimary)),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                        style: AppTypography.bodyLarge(colors.textPrimary)
+                            .copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 8),
                     Text('Allocated',
-                        style: AppTypography.caption(colors.textSecondary)),
+                        style: TextStyle(
+                            color: colors.textSecondary, fontSize: 12)),
                     RupeeAmount(
                         amount: allocatedQuarterBudget,
                         style: AppTypography.bodyLarge(colors.textPrimary)),
@@ -362,16 +557,36 @@ class _QuarterForecastCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           Container(
-            padding: const EdgeInsets.all(AppSpacing.sm),
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppSpacing.sm + 2),
             decoration: BoxDecoration(
-              color: colors.info.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
+              gradient: LinearGradient(
+                colors: [
+                  colors.info.withOpacity(0.16),
+                  colors.info.withOpacity(0.06),
+                ],
+              ),
+              border: Border.all(color: colors.info.withOpacity(0.25)),
             ),
-            child: Text(
-              'At the current burn rate, you\'ll use ${quarterPercent.toStringAsFixed(0)}% '
-              'of the quarterly budget by month 3.',
-              style:
-                  AppTypography.body(colors.textPrimary).copyWith(height: 1.4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.bolt_rounded, size: 16, color: colors.info),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'At the current burn rate, you\'ll use '
+                    '${quarterPercent.toStringAsFixed(0)}% of the quarterly '
+                    'budget by month 3.',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 12.5,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -380,6 +595,63 @@ class _QuarterForecastCard extends StatelessWidget {
   }
 }
 
+class _RingPainter extends CustomPainter {
+  _RingPainter({
+    required this.progress,
+    required this.trackColor,
+    required this.progressColor,
+  });
+
+  final double progress;
+  final Color trackColor;
+  final Color progressColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width - 8) / 2;
+    const strokeWidth = 7.0;
+
+    final track = Paint()
+      ..color = trackColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(center, radius, track);
+
+    final glow = Paint()
+      ..color = progressColor.withOpacity(0.5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth + 3
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+
+    final fg = Paint()
+      ..color = progressColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    final sweep = 2 * math.pi * progress.clamp(0, 1);
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    const start = -math.pi / 2;
+
+    if (progress > 0) {
+      canvas.drawArc(rect, start, sweep, false, glow);
+      canvas.drawArc(rect, start, sweep, false, fg);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _RingPainter oldDelegate) =>
+      oldDelegate.progress != progress ||
+      oldDelegate.progressColor != progressColor;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Per-tool spend — colored dot + inline bar per row
+// ─────────────────────────────────────────────────────────────────────────
+
 class _ToolBreakdownCard extends StatelessWidget {
   const _ToolBreakdownCard({required this.tools});
   final List<_ToolSpend> tools;
@@ -387,46 +659,129 @@ class _ToolBreakdownCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: colors.surfaceElevated,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+    final maxPercent =
+        tools.map((t) => t.percentOfBudget).reduce((a, b) => a > b ? a : b);
+
+    return _GlassCard(
+      colors: colors,
+      title: 'Per-tool spend',
+      accent: colors.secondary,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Per-tool spend', style: AppTypography.h3(colors.textPrimary)),
-          const SizedBox(height: AppSpacing.md),
-          for (final tool in tools) ...[
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: Text(tool.name,
-                        style: AppTypography.body(colors.textPrimary)),
-                  ),
-                  RupeeAmount(
-                      amount: tool.monthlyCost,
-                      style: AppTypography.body(colors.textPrimary)),
-                  const SizedBox(width: AppSpacing.sm),
-                  SizedBox(
-                    width: 48,
-                    child: Text(
-                      '${tool.percentOfBudget.toStringAsFixed(1)}%',
-                      textAlign: TextAlign.right,
-                      style: AppTypography.caption(colors.textSecondary),
-                    ),
+          for (var i = 0; i < tools.length; i++) ...[
+            _ToolRow(
+              tool: tools[i],
+              colors: colors,
+              accent: tools[i].accent(colors),
+              fraction: tools[i].percentOfBudget / maxPercent,
+              delayMs: i * 90,
+            ),
+            if (i != tools.length - 1) const SizedBox(height: AppSpacing.md),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ToolRow extends StatelessWidget {
+  const _ToolRow({
+    required this.tool,
+    required this.colors,
+    required this.accent,
+    required this.fraction,
+    required this.delayMs,
+  });
+
+  final _ToolSpend tool;
+  final AppColorsData colors;
+  final Color accent;
+  final double fraction;
+  final int delayMs;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: accent,
+                boxShadow: [
+                  BoxShadow(
+                    color: accent.withOpacity(0.6),
+                    blurRadius: 6,
+                    spreadRadius: 0.5,
                   ),
                 ],
               ),
             ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(tool.name,
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                  )),
+            ),
+            RupeeAmount(
+              amount: tool.monthlyCost,
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            SizedBox(
+              width: 42,
+              child: Text(
+                '${tool.percentOfBudget.toStringAsFixed(1)}%',
+                textAlign: TextAlign.right,
+                style: TextStyle(color: colors.textSecondary, fontSize: 11.5),
+              ),
+            ),
           ],
-        ],
-      ),
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: Container(
+            height: 5,
+            color: colors.textSecondary.withOpacity(0.08),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: fraction.clamp(0, 1)),
+              duration: Duration(milliseconds: 600 + delayMs),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, _) => FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: value,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(4),
+                    gradient: LinearGradient(
+                      colors: [accent, accent.withOpacity(0.55)],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: accent.withOpacity(0.45),
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

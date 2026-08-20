@@ -4,6 +4,7 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_colors_data.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../shared/widgets/reject_request_sheet.dart';
 import 'engineering_manager_approval_actions.dart';
 import 'engineering_manager_approval_details_screen.dart';
 import 'engineering_manager_approvals_cubit.dart';
@@ -13,6 +14,16 @@ import 'pending_requests_repository.dart';
 /// Deliberately excludes: Delegate action, vendor/annual-cost/risk-level
 /// fields, cross-department comparisons — those are CEO-tier. This screen
 /// is single-team, single-seat AI-tool requests only.
+///
+/// v2: hero card made more compact, pending cards restyled (gradient
+/// avatars, tighter spacing), priority chips replaced with the app's
+/// custom themed pill style, and Reject now opens the shared
+/// `showRejectRequestSheet` bottom sheet instead of navigating to a
+/// separate reject screen.
+///
+/// v3: Pending/History toggle switched from filled segmented pills to
+/// underline tabs. Priority filter chips given more breathing room
+/// (wider gaps, extra bottom padding before the list).
 class EngineeringManagerApprovalsScreen extends StatelessWidget {
   const EngineeringManagerApprovalsScreen({super.key});
 
@@ -61,13 +72,31 @@ class _EngineeringManagerApprovalsViewState
           final curved =
               CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
           return SlideTransition(
-            position: Tween<Offset>(begin: const Offset(0.06, 0), end: Offset.zero)
-                .animate(curved),
+            position:
+                Tween<Offset>(begin: const Offset(0.06, 0), end: Offset.zero)
+                    .animate(curved),
             child: FadeTransition(opacity: curved, child: child),
           );
         },
       ),
     );
+  }
+
+  /// Opens the shared reject-reason bottom sheet (same one used on CEO
+  /// Approvals) instead of navigating to a separate screen. Returns true
+  /// if the request was actually rejected, so the card knows whether to
+  /// play its exit animation.
+  Future<bool> _rejectViaSheet(
+      BuildContext context, PendingRequestData request) async {
+    final reason = await showRejectRequestSheet(
+      context,
+      requesterName: request.employeeName,
+    );
+    if (reason == null || !context.mounted) return false;
+    await context
+        .read<EngineeringManagerApprovalsCubit>()
+        .reject(request.id, reason);
+    return true;
   }
 
   @override
@@ -80,7 +109,8 @@ class _EngineeringManagerApprovalsViewState
             EngineeringManagerApprovalsState>(
           builder: (context, state) {
             return switch (state) {
-              EngineeringManagerApprovalsLoading() => _LoadingView(colors: colors),
+              EngineeringManagerApprovalsLoading() =>
+                _LoadingView(colors: colors),
               EngineeringManagerApprovalsError(:final message) => Column(
                   children: [
                     const _Header(),
@@ -94,11 +124,15 @@ class _EngineeringManagerApprovalsViewState
                     ),
                   ],
                 ),
-              EngineeringManagerApprovalsLoaded(:final data, :final isProcessing) =>
+              EngineeringManagerApprovalsLoaded(
+                :final data,
+                :final isProcessing
+              ) =>
                 RefreshIndicator(
                   color: colors.primary,
-                  onRefresh: () =>
-                      context.read<EngineeringManagerApprovalsCubit>().refresh(),
+                  onRefresh: () => context
+                      .read<EngineeringManagerApprovalsCubit>()
+                      .refresh(),
                   child: CustomScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     slivers: [
@@ -137,7 +171,8 @@ class _EngineeringManagerApprovalsViewState
                           ),
                         ),
                       SliverToBoxAdapter(
-                          child: SizedBox(height: isProcessing ? AppSpacing.sm : 0)),
+                          child: SizedBox(
+                              height: isProcessing ? AppSpacing.sm : 0)),
                       _buildBody(context, colors, data),
                     ],
                   ),
@@ -209,7 +244,7 @@ class _EngineeringManagerApprovalsViewState
               onApprove: () => context
                   .read<EngineeringManagerApprovalsCubit>()
                   .approve(request.id),
-              onReject: () => openRejectRequestScreen(context, request),
+              onReject: () => _rejectViaSheet(context, request),
               onViewDetails: () => _openDetails(context, request.id),
             ),
           );
@@ -246,12 +281,8 @@ class _Header extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// HERO CARD
-// FIX: the budget stat used to be a single Row with a concatenated
-// " / 60,000" suffix that had no room to shrink — that's what threw the
-// overflow. It's now stacked (big remaining figure, small "of ₹X total"
-// caption underneath) so there's no long single line competing for width,
-// and every number still routes through the overflow-safe CurrencyLabel.
+// HERO CARD — compact v2: smaller padding, smaller type scale, tighter
+// spacing throughout, same info density as before.
 // ---------------------------------------------------------------------------
 
 class _HeroCard extends StatelessWidget {
@@ -265,21 +296,21 @@ class _HeroCard extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.xl, AppSpacing.sm, AppSpacing.xl, AppSpacing.md),
+          AppSpacing.xl, AppSpacing.xs, AppSpacing.xl, AppSpacing.sm),
       child: Container(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [colors.primary, colors.secondary],
           ),
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: colors.primary.withOpacity(0.30),
-              blurRadius: 24,
-              offset: const Offset(0, 10),
+              color: colors.primary.withValues(alpha: 0.26),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
@@ -290,104 +321,96 @@ class _HeroCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          TweenAnimationBuilder<double>(
-                            tween:
-                                Tween(begin: 0, end: data.pendingCount.toDouble()),
-                            duration: const Duration(milliseconds: 450),
-                            curve: Curves.easeOutCubic,
-                            builder: (context, value, _) => Text(
-                              value.round().toString(),
-                              style: AppTypography.h1(Colors.white)
-                                  .copyWith(fontWeight: FontWeight.w800, height: 1),
-                            ),
-                          ),
-                        ],
+                      TweenAnimationBuilder<double>(
+                        tween:
+                            Tween(begin: 0, end: data.pendingCount.toDouble()),
+                        duration: const Duration(milliseconds: 450),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, value, _) => Text(
+                          value.round().toString(),
+                          style: AppTypography.h2(Colors.white)
+                              .copyWith(fontWeight: FontWeight.w800, height: 1),
+                        ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        data.pendingCount == 1
-                            ? 'request awaiting your approval'
-                            : 'requests awaiting your approval',
-                        style: AppTypography.caption(Colors.white.withOpacity(0.9)),
+                      const SizedBox(width: 6),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 3),
+                        child: Text(
+                          data.pendingCount == 1
+                              ? 'pending request'
+                              : 'pending requests',
+                          style: AppTypography.caption(
+                              Colors.white.withValues(alpha: 0.9)),
+                        ),
                       ),
                     ],
                   ),
                 ),
                 if (data.urgentCount > 0)
-                  Padding(
-                    padding: const EdgeInsets.only(left: AppSpacing.sm),
-                    child: Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.18),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.priority_high_rounded,
-                              size: 13, color: Colors.white),
-                          const SizedBox(width: 3),
-                          Flexible(
-                            child: Text(
-                              '${data.urgentCount} high priority',
-                              style: AppTypography.caption(Colors.white)
-                                  .copyWith(fontWeight: FontWeight.w700),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.priority_high_rounded,
+                            size: 12, color: Colors.white),
+                        const SizedBox(width: 3),
+                        Text(
+                          '${data.urgentCount} high',
+                          style: AppTypography.caption(Colors.white).copyWith(
+                              fontWeight: FontWeight.w700, fontSize: 11),
+                        ),
+                      ],
                     ),
                   ),
               ],
             ),
-            const SizedBox(height: AppSpacing.md),
-            Container(height: 1, color: Colors.white.withOpacity(0.18)),
-            const SizedBox(height: AppSpacing.md),
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: _HeroStat(
-                      label: 'Monthly value pending',
-                      value: CurrencyLabel(
-                        data.totalMonthlyPending,
-                        style: AppTypography.h3(Colors.white)
-                            .copyWith(fontWeight: FontWeight.w700),
-                        iconSize: 15,
-                      ),
+            const SizedBox(height: AppSpacing.sm),
+            Container(height: 1, color: Colors.white.withValues(alpha: 0.16)),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _HeroStat(
+                    label: 'Monthly value pending',
+                    value: CurrencyLabel(
+                      data.totalMonthlyPending,
+                      style: AppTypography.body(Colors.white)
+                          .copyWith(fontWeight: FontWeight.w700),
+                      iconSize: 13,
                     ),
                   ),
-                  Container(
-                      width: 1,
-                      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-                      color: Colors.white.withOpacity(0.18)),
-                  Expanded(
-                    child: _HeroStat(
-                      label: 'Team budget remaining',
-                      value: CurrencyLabel(
-                        data.budget.remainingBudget,
-                        style: AppTypography.h3(
-                                overBudget ? colors.warning : Colors.white)
-                            .copyWith(fontWeight: FontWeight.w700),
-                        iconSize: 15,
-                      ),
-                      caption:
-                          'of ${formatAmountDigits(data.budget.totalMonthlyBudget)} total',
+                ),
+                Container(
+                    width: 1,
+                    height: 30,
+                    margin:
+                        const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                    color: Colors.white.withValues(alpha: 0.16)),
+                Expanded(
+                  child: _HeroStat(
+                    label: 'Budget remaining',
+                    value: CurrencyLabel(
+                      data.budget.remainingBudget,
+                      style: AppTypography.body(
+                              overBudget ? colors.warning : Colors.white)
+                          .copyWith(fontWeight: FontWeight.w700),
+                      iconSize: 13,
                     ),
+                    caption:
+                        'of ${formatAmountDigits(data.budget.totalMonthlyBudget)}',
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ],
         ),
@@ -404,32 +427,32 @@ class _HeroStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          value,
-          if (caption != null)
-            Text(caption!,
-                style: AppTypography.caption(Colors.white.withOpacity(0.75))
-                    .copyWith(fontSize: 10),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis),
-          const SizedBox(height: 2),
-          Text(label,
-              style: AppTypography.caption(Colors.white.withOpacity(0.85)),
-              maxLines: 2,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        value,
+        Text(label,
+            style: AppTypography.caption(Colors.white.withValues(alpha: 0.85))
+                .copyWith(fontSize: 10.5),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis),
+        if (caption != null)
+          Text(caption!,
+              style: AppTypography.caption(Colors.white.withValues(alpha: 0.65))
+                  .copyWith(fontSize: 9.5),
+              maxLines: 1,
               overflow: TextOverflow.ellipsis),
-        ],
-      ),
+      ],
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// SEGMENTED TOGGLE
+// PENDING / HISTORY TOGGLE — v3: underline tabs instead of filled
+// segmented pills. Selected tab gets bold text + a colored bottom border
+// and a tinted count badge; unselected tab is muted plain text. Reads
+// lighter than the old boxed control and matches native tab-bar patterns.
 // ---------------------------------------------------------------------------
 
 class _SegmentedToggle extends StatelessWidget {
@@ -450,41 +473,31 @@ class _SegmentedToggle extends StatelessWidget {
     final colors = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.sm),
-      child: Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: colors.surfaceElevated,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.border),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: _ToggleSegment(
-                label: 'Pending',
-                count: pendingCount,
-                selected: tab == _Tab.pending,
-                onTap: () => onChanged(_Tab.pending),
-              ),
-            ),
-            Expanded(
-              child: _ToggleSegment(
-                label: 'History',
-                count: historyCount,
-                selected: tab == _Tab.history,
-                onTap: () => onChanged(_Tab.history),
-              ),
-            ),
-          ],
-        ),
+          AppSpacing.xl, AppSpacing.sm, AppSpacing.xl, AppSpacing.sm),
+      child: Row(
+        children: [
+          _UnderlineTab(
+            label: 'Pending',
+            count: pendingCount,
+            selected: tab == _Tab.pending,
+            onTap: () => onChanged(_Tab.pending),
+          ),
+          const SizedBox(width: AppSpacing.xl),
+          _UnderlineTab(
+            label: 'History',
+            count: historyCount,
+            selected: tab == _Tab.history,
+            onTap: () => onChanged(_Tab.history),
+          ),
+          const Spacer(),
+        ],
       ),
     );
   }
 }
 
-class _ToggleSegment extends StatelessWidget {
-  const _ToggleSegment({
+class _UnderlineTab extends StatelessWidget {
+  const _UnderlineTab({
     required this.label,
     required this.count,
     required this.selected,
@@ -501,28 +514,48 @@ class _ToggleSegment extends StatelessWidget {
     final colors = AppColors.of(context);
     return GestureDetector(
       onTap: onTap,
+      behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOut,
-        height: 38,
-        alignment: Alignment.center,
+        padding: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
-          color: selected ? colors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: colors.primary.withOpacity(0.30),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ]
-              : null,
+          border: Border(
+            bottom: BorderSide(
+              color: selected ? colors.primary : Colors.transparent,
+              width: 2.5,
+            ),
+          ),
         ),
-        child: Text(
-          '$label ($count)',
-          style: AppTypography.caption(selected ? Colors.white : colors.textSecondary)
-              .copyWith(fontWeight: FontWeight.w600),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: AppTypography.body(
+                      selected ? colors.textPrimary : colors.textSecondary)
+                  .copyWith(
+                      fontWeight:
+                          selected ? FontWeight.w700 : FontWeight.w500),
+            ),
+            const SizedBox(width: 6),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: selected
+                    ? colors.primary.withValues(alpha: 0.12)
+                    : colors.surfaceElevated,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '$count',
+                style: AppTypography.caption(
+                        selected ? colors.primary : colors.textSecondary)
+                    .copyWith(fontWeight: FontWeight.w600, fontSize: 11),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -530,7 +563,9 @@ class _ToggleSegment extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// PRIORITY FILTER CHIPS
+// PRIORITY FILTER CHIPS — v3: wider gaps between pills, roomier padding,
+// and dedicated bottom spacing so the row doesn't sit flush against the
+// first pending card.
 // ---------------------------------------------------------------------------
 
 class _PriorityChips extends StatelessWidget {
@@ -554,38 +589,77 @@ class _PriorityChips extends StatelessWidget {
       RequestPriority.low,
     ];
 
-    return SizedBox(
-      height: 40,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-        itemCount: options.length,
-        separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.xs),
-        itemBuilder: (context, index) {
-          final p = options[index];
-          final isSelected = p == selected;
-          final label = p == null ? 'All' : p.label;
-          final color = p == null ? colors.primary : priorityColor(context, p);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: SizedBox(
+        height: 40,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+          itemCount: options.length,
+          separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+          itemBuilder: (context, index) {
+            final p = options[index];
+            final isSelected = p == selected;
+            final label = p == null ? 'All' : p.label;
+            final color = p == null ? colors.primary : priorityColor(context, p);
+            final count = countFor(p);
 
-          return ChoiceChip(
-            avatar: p == null
-                ? null
-                : Icon(priorityIcon(p),
-                    size: 14, color: isSelected ? Colors.white : color),
-            label: Text('$label (${countFor(p)})'),
-            selected: isSelected,
-            onSelected: (_) => onSelected(p),
-            labelStyle: AppTypography.caption(
-                    isSelected ? Colors.white : colors.textSecondary)
-                .copyWith(fontWeight: FontWeight.w600),
-            backgroundColor: colors.surfaceElevated,
-            selectedColor: color,
-            side: BorderSide(color: isSelected ? color : colors.border),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            visualDensity: VisualDensity.compact,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          );
-        },
+            return GestureDetector(
+              onTap: () => onSelected(p),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md + 2, vertical: AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: isSelected ? color : colors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: isSelected ? color : colors.border),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (p != null) ...[
+                      Icon(priorityIcon(p),
+                          size: 13, color: isSelected ? Colors.white : color),
+                      const SizedBox(width: 5),
+                    ] else ...[
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          color: isSelected ? Colors.white : color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                    ],
+                    Text(label,
+                        style: AppTypography.caption(
+                                isSelected ? Colors.white : colors.textPrimary)
+                            .copyWith(fontWeight: FontWeight.w600)),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? Colors.white.withValues(alpha: 0.22)
+                            : colors.border,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text('$count',
+                          style: AppTypography.caption(isSelected
+                                  ? Colors.white
+                                  : colors.textSecondary)
+                              .copyWith(fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -673,8 +747,23 @@ class _ExitAnimated extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// PENDING CARD
+// PENDING CARD — v2: gradient initials avatar (was flat primary-tint
+// circle), tighter internal spacing, refined tool row.
 // ---------------------------------------------------------------------------
+
+const List<Color> _kAvatarPalette = [
+  Color(0xFF6C5CE7),
+  Color(0xFF2F80ED),
+  Color(0xFFE85D75),
+  Color(0xFFF2994A),
+  Color(0xFF11998E),
+  Color(0xFF9B51E0),
+];
+
+Color _avatarColorFor(String name) {
+  final hash = name.codeUnits.fold<int>(0, (a, c) => a + c);
+  return _kAvatarPalette[hash % _kAvatarPalette.length];
+}
 
 class _PendingCard extends StatefulWidget {
   const _PendingCard({
@@ -719,20 +808,22 @@ class _PendingCardState extends State<_PendingCard> {
     final request = widget.request;
     final pColor = priorityColor(context, request.priority);
     final isHigh = request.priority == RequestPriority.high;
+    final avatarColor = _avatarColorFor(request.employeeName);
 
     return _ExitAnimated(
       exiting: _exiting,
       child: Container(
         decoration: BoxDecoration(
           color: colors.surfaceElevated,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
-              color: isHigh ? colors.danger.withOpacity(0.45) : colors.border,
-              width: isHigh ? 1.4 : 1),
+              color:
+                  isHigh ? colors.danger.withValues(alpha: 0.4) : colors.border,
+              width: isHigh ? 1.3 : 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 10,
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 8,
               offset: const Offset(0, 3),
             ),
           ],
@@ -751,14 +842,23 @@ class _PendingCardState extends State<_PendingCard> {
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        color: colors.primary.withOpacity(0.12),
                         shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            avatarColor,
+                            avatarColor.withValues(alpha: 0.7)
+                          ],
+                        ),
                       ),
                       alignment: Alignment.center,
                       child: Text(
                         _initials(request.employeeName),
-                        style: AppTypography.caption(colors.primary)
-                            .copyWith(fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13),
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
@@ -773,7 +873,8 @@ class _PendingCardState extends State<_PendingCard> {
                               overflow: TextOverflow.ellipsis),
                           if (request.employeeRole.isNotEmpty)
                             Text(request.employeeRole,
-                                style: AppTypography.caption(colors.textSecondary),
+                                style:
+                                    AppTypography.caption(colors.textSecondary),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis),
                         ],
@@ -781,21 +882,22 @@ class _PendingCardState extends State<_PendingCard> {
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: pColor.withOpacity(0.12),
+                        color: pColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(priorityIcon(request.priority), size: 12, color: pColor),
+                          Icon(priorityIcon(request.priority),
+                              size: 12, color: pColor),
                           const SizedBox(width: 3),
                           Text(
                             request.priority.label.toUpperCase(),
-                            style: AppTypography.caption(pColor)
-                                .copyWith(fontWeight: FontWeight.w700, fontSize: 10),
+                            style: AppTypography.caption(pColor).copyWith(
+                                fontWeight: FontWeight.w700, fontSize: 10),
                           ),
                         ],
                       ),
@@ -813,7 +915,8 @@ class _PendingCardState extends State<_PendingCard> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.auto_awesome_rounded, size: 14, color: colors.primary),
+                      Icon(Icons.auto_awesome_rounded,
+                          size: 14, color: colors.primary),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(request.requestedTool,
@@ -848,9 +951,10 @@ class _PendingCardState extends State<_PendingCard> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
-                      color: colors.primary.withOpacity(0.06),
+                      color: colors.primary.withValues(alpha: 0.06),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: colors.primary.withOpacity(0.16)),
+                      border: Border.all(
+                          color: colors.primary.withValues(alpha: 0.16)),
                     ),
                     child: Row(
                       children: [
@@ -871,7 +975,8 @@ class _PendingCardState extends State<_PendingCard> {
                 const SizedBox(height: AppSpacing.sm),
                 Row(
                   children: [
-                    Icon(Icons.schedule_rounded, size: 12, color: colors.textSecondary),
+                    Icon(Icons.schedule_rounded,
+                        size: 12, color: colors.textSecondary),
                     const SizedBox(width: 4),
                     Text(formatRelative(request.requestDate),
                         style: AppTypography.caption(colors.textSecondary)),
@@ -906,15 +1011,16 @@ class _PendingCardState extends State<_PendingCard> {
                         height: 42,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: colors.danger.withOpacity(0.10),
+                          color: colors.danger.withValues(alpha: 0.10),
                           borderRadius: BorderRadius.circular(12),
-                          border:
-                              Border.all(color: colors.danger.withOpacity(0.3)),
+                          border: Border.all(
+                              color: colors.danger.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.close_rounded, size: 16, color: colors.danger),
+                            Icon(Icons.close_rounded,
+                                size: 16, color: colors.danger),
                             const SizedBox(width: 6),
                             Text('Reject',
                                 style: AppTypography.caption(colors.danger)
@@ -936,7 +1042,7 @@ class _PendingCardState extends State<_PendingCard> {
                               colors: [colors.primary, colors.secondary]),
                           boxShadow: [
                             BoxShadow(
-                              color: colors.primary.withOpacity(0.28),
+                              color: colors.primary.withValues(alpha: 0.28),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -945,7 +1051,8 @@ class _PendingCardState extends State<_PendingCard> {
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.check_rounded, size: 16, color: Colors.white),
+                            Icon(Icons.check_rounded,
+                                size: 16, color: Colors.white),
                             SizedBox(width: 6),
                             Text('Approve',
                                 style: TextStyle(
@@ -1013,8 +1120,8 @@ class _HistoryTile extends StatelessWidget {
             Container(
               width: 32,
               height: 32,
-              decoration:
-                  BoxDecoration(color: color.withOpacity(0.12), shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
               child: Icon(approved ? Icons.check_rounded : Icons.close_rounded,
                   size: 16, color: color),
             ),
@@ -1048,7 +1155,8 @@ class _HistoryTile extends StatelessWidget {
               children: [
                 Text(formatRelative(request.decidedAt ?? request.requestDate),
                     style: AppTypography.caption(colors.textSecondary)),
-                Icon(Icons.chevron_right_rounded, size: 16, color: colors.textSecondary),
+                Icon(Icons.chevron_right_rounded,
+                    size: 16, color: colors.textSecondary),
               ],
             ),
           ],
@@ -1078,11 +1186,14 @@ class _EmptyPendingView extends StatelessWidget {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                  color: colors.success.withOpacity(0.12), shape: BoxShape.circle),
-              child: Icon(Icons.task_alt_rounded, size: 32, color: colors.success),
+                  color: colors.success.withValues(alpha: 0.12),
+                  shape: BoxShape.circle),
+              child:
+                  Icon(Icons.task_alt_rounded, size: 32, color: colors.success),
             ),
             const SizedBox(height: AppSpacing.md),
-            Text("You're all caught up", style: AppTypography.h3(colors.textPrimary)),
+            Text("You're all caught up",
+                style: AppTypography.h3(colors.textPrimary)),
             const SizedBox(height: AppSpacing.xs),
             Text('No requests from your team need approval right now.',
                 style: AppTypography.body(colors.textSecondary),
@@ -1132,9 +1243,11 @@ class _NoResultsView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.filter_alt_off_rounded, size: 32, color: colors.textSecondary),
+            Icon(Icons.filter_alt_off_rounded,
+                size: 32, color: colors.textSecondary),
             const SizedBox(height: AppSpacing.md),
-            Text('No matching requests', style: AppTypography.h3(colors.textPrimary)),
+            Text('No matching requests',
+                style: AppTypography.h3(colors.textPrimary)),
             const SizedBox(height: AppSpacing.xs),
             Text('Try a different priority filter.',
                 style: AppTypography.body(colors.textSecondary),
@@ -1157,7 +1270,7 @@ class _LoadingView extends StatelessWidget {
       children: [
         _Shimmer(child: _skeletonBlock(colors, height: 44)),
         const SizedBox(height: AppSpacing.md),
-        _Shimmer(child: _skeletonBlock(colors, height: 140)),
+        _Shimmer(child: _skeletonBlock(colors, height: 120)),
         const SizedBox(height: AppSpacing.md),
         _Shimmer(child: _skeletonBlock(colors, height: 44)),
         const SizedBox(height: AppSpacing.lg),
@@ -1189,10 +1302,11 @@ class _Shimmer extends StatefulWidget {
   State<_Shimmer> createState() => _ShimmerState();
 }
 
-class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))
-        ..repeat();
+class _ShimmerState extends State<_Shimmer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 1400))
+    ..repeat();
 
   @override
   void dispose() {
@@ -1213,9 +1327,9 @@ class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin 
               begin: Alignment(-1 + 3 * t, 0),
               end: Alignment(0 + 3 * t, 0),
               colors: [
-                Colors.white.withOpacity(0.0),
-                Colors.white.withOpacity(0.35),
-                Colors.white.withOpacity(0.0),
+                Colors.white.withValues(alpha: 0.0),
+                Colors.white.withValues(alpha: 0.35),
+                Colors.white.withValues(alpha: 0.0),
               ],
             ).createShader(bounds);
           },
@@ -1243,7 +1357,8 @@ class _ErrorView extends StatelessWidget {
           children: [
             Icon(Icons.error_outline, size: 40, color: colors.danger),
             const SizedBox(height: AppSpacing.md),
-            Text('Unable to load approvals', style: AppTypography.h3(colors.textPrimary)),
+            Text('Unable to load approvals',
+                style: AppTypography.h3(colors.textPrimary)),
             const SizedBox(height: AppSpacing.xs),
             Text('Something went wrong while loading your requests.',
                 style: AppTypography.body(colors.textSecondary),

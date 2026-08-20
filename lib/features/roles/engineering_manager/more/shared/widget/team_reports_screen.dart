@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:runrate/core/constants/app_spacing.dart';
 import 'package:runrate/core/theme/app_colors.dart';
+import 'package:runrate/core/theme/app_colors_data.dart';
 import 'package:runrate/core/theme/app_typography.dart';
 import 'package:runrate/features/roles/engineering_manager/more/shared/widget/em_screen_scaffold.dart';
 import '../em_shared_widget.dart';
@@ -25,7 +26,13 @@ class _Report {
   final String sizeLabel;
 }
 
-/// More → Team Reports
+/// More → Team Reports (Premium / Futuristic rebuild)
+///
+/// Keeps `EmGradientHero`, `ScaleOnTap`, `EmSkeletonBox`, `EmEmptyState`
+/// from `em_shared_widget.dart` since those are shared across other EM
+/// screens. Search field, filter chips, and report cards are rebuilt
+/// local to this file with the glass / neon-accent treatment used on
+/// the Notifications and Budget & Forecast screens.
 ///
 /// TODO: `_fetchReports()` below returns mock data after an artificial
 /// delay, matching the pattern already used by
@@ -162,19 +169,29 @@ class _TeamReportsScreenState extends State<TeamReportsScreen>
                     onTap: _generateReport,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
+                          horizontal: 16, vertical: 11),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.35)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.add, size: 16, color: Colors.white),
+                          const Icon(Icons.add_rounded,
+                              size: 16, color: Colors.white),
                           const SizedBox(width: 4),
                           Text('Generate',
                               style: AppTypography.caption(Colors.white)
-                                  .copyWith(fontWeight: FontWeight.w600)),
+                                  .copyWith(fontWeight: FontWeight.w700)),
                         ],
                       ),
                     ),
@@ -183,43 +200,38 @@ class _TeamReportsScreenState extends State<TeamReportsScreen>
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            TextField(
+            _GlassSearchField(
+              colors: colors,
               onChanged: (v) => setState(() => _query = v),
-              decoration: InputDecoration(
-                hintText: 'Search reports',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: colors.surfaceElevated,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: colors.border),
-                ),
-              ),
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.md),
             SizedBox(
               height: 36,
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 children: [
                   _FilterChip(
+                      colors: colors,
                       label: 'All',
                       selected: _activeFilter == null,
                       onTap: () => setState(() => _activeFilter = null)),
                   const SizedBox(width: 8),
                   _FilterChip(
+                      colors: colors,
                       label: 'Spend',
                       selected: _activeFilter == _ReportType.spend,
                       onTap: () =>
                           setState(() => _activeFilter = _ReportType.spend)),
                   const SizedBox(width: 8),
                   _FilterChip(
+                      colors: colors,
                       label: 'Budget',
                       selected: _activeFilter == _ReportType.budget,
                       onTap: () =>
                           setState(() => _activeFilter = _ReportType.budget)),
                   const SizedBox(width: 8),
                   _FilterChip(
+                      colors: colors,
                       label: 'AI Adoption',
                       selected: _activeFilter == _ReportType.aiAdoption,
                       onTap: () => setState(
@@ -234,7 +246,7 @@ class _TeamReportsScreenState extends State<TeamReportsScreen>
                   3,
                   (i) => Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: EmSkeletonBox(height: 72, radius: 16),
+                    child: EmSkeletonBox(height: 76, radius: 18),
                   ),
                 ),
               )
@@ -261,72 +273,183 @@ class _TeamReportsScreenState extends State<TeamReportsScreen>
   }
 }
 
-class _FilterChip extends StatelessWidget {
-  const _FilterChip(
-      {required this.label, required this.selected, required this.onTap});
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
+// ─────────────────────────────────────────────────────────────────────────
+// Glass search field
+// ─────────────────────────────────────────────────────────────────────────
+
+class _GlassSearchField extends StatelessWidget {
+  const _GlassSearchField({required this.colors, required this.onChanged});
+  final AppColorsData colors;
+  final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    return ScaleOnTap(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected
-              ? colors.primary.withValues(alpha: 0.15)
-              : colors.surfaceElevated,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: selected ? colors.primary : colors.border),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colors.textPrimary.withOpacity(0.05),
+            colors.textPrimary.withOpacity(0.02),
+          ],
         ),
-        child: Text(
-          label,
-          style: AppTypography.caption(
-                  selected ? colors.primary : colors.textSecondary)
-              .copyWith(
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.normal),
+        border: Border.all(color: colors.textSecondary.withOpacity(0.14)),
+      ),
+      child: TextField(
+        onChanged: onChanged,
+        style: TextStyle(color: colors.textPrimary, fontSize: 14),
+        cursorColor: colors.primary,
+        decoration: InputDecoration(
+          hintText: 'Search reports',
+          hintStyle: TextStyle(color: colors.textSecondary, fontSize: 14),
+          prefixIcon:
+              Icon(Icons.search_rounded, color: colors.textSecondary, size: 20),
+          filled: false,
+          border: InputBorder.none,
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
         ),
       ),
     );
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Filter chip — glowing pill when selected
+// ─────────────────────────────────────────────────────────────────────────
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.colors,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final AppColorsData colors;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleOnTap(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          gradient: selected
+              ? LinearGradient(
+                  colors: [
+                    colors.primary.withOpacity(0.9),
+                    colors.primary.withOpacity(0.6),
+                  ],
+                )
+              : null,
+          color: selected ? null : colors.textPrimary.withOpacity(0.03),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected
+                ? colors.primary.withOpacity(0.8)
+                : colors.textSecondary.withOpacity(0.14),
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: colors.primary.withOpacity(0.4),
+                    blurRadius: 10,
+                    spreadRadius: 0.5,
+                  ),
+                ]
+              : [],
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : colors.textSecondary,
+            fontSize: 12.5,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Report card — glass, gradient icon badge, glow action buttons
+// ─────────────────────────────────────────────────────────────────────────
+
 class _ReportCard extends StatelessWidget {
   const _ReportCard({required this.report});
   final _Report report;
 
   IconData get _icon => switch (report.type) {
-        _ReportType.spend => Icons.bar_chart_outlined,
-        _ReportType.budget => Icons.pie_chart_outline,
-        _ReportType.aiAdoption => Icons.auto_awesome_outlined,
+        _ReportType.spend => Icons.bar_chart_rounded,
+        _ReportType.budget => Icons.donut_large_rounded,
+        _ReportType.aiAdoption => Icons.auto_awesome_rounded,
+      };
+
+  Color _accent(AppColorsData colors) => switch (report.type) {
+        _ReportType.spend => colors.primary,
+        _ReportType.budget => colors.warning,
+        _ReportType.aiAdoption => colors.secondary,
       };
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
+    final accent = _accent(colors);
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: colors.surfaceElevated,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
+        borderRadius: BorderRadius.circular(18),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colors.textPrimary.withOpacity(0.05),
+            colors.textPrimary.withOpacity(0.02),
+          ],
+        ),
+        border: Border.all(color: colors.textSecondary.withOpacity(0.10)),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withOpacity(0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: colors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [accent.withOpacity(0.30), accent.withOpacity(0.10)],
+              ),
+              border: Border.all(color: accent.withOpacity(0.45)),
+              boxShadow: [
+                BoxShadow(
+                  color: accent.withOpacity(0.25),
+                  blurRadius: 10,
+                  spreadRadius: 0.5,
+                ),
+              ],
             ),
-            child: Icon(_icon, size: 18, color: colors.primary),
+            child: Icon(_icon, size: 19, color: accent),
           ),
-          const SizedBox(width: AppSpacing.sm),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -334,37 +457,42 @@ class _ReportCard extends StatelessWidget {
                 Text(report.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTypography.bodyLarge(colors.textPrimary)),
-                const SizedBox(height: 2),
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w600,
+                    )),
+                const SizedBox(height: 3),
                 Text(
-                  '${report.dateRange} · Generated ${report.generatedOn} · ${report.sizeLabel}',
+                  '${report.dateRange} · ${report.generatedOn} · ${report.sizeLabel}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTypography.caption(colors.textSecondary),
+                  style: TextStyle(color: colors.textSecondary, fontSize: 11.5),
                 ),
               ],
             ),
           ),
-          ScaleOnTap(
+          const SizedBox(width: AppSpacing.sm),
+          _GlowIconButton(
+            icon: Icons.visibility_outlined,
+            color: colors.textSecondary,
             onTap: () {
               // TODO: open your real report viewer.
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Opening ${report.name}…')),
               );
             },
-            child: Icon(Icons.visibility_outlined,
-                size: 20, color: colors.textSecondary),
           ),
-          const SizedBox(width: AppSpacing.sm),
-          ScaleOnTap(
+          const SizedBox(width: 6),
+          _GlowIconButton(
+            icon: Icons.download_rounded,
+            color: accent,
             onTap: () {
               // TODO: wire to your real download/export flow.
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Downloading ${report.name}…')),
               );
             },
-            child:
-                Icon(Icons.download_outlined, size: 20, color: colors.primary),
           ),
         ],
       ),
@@ -372,3 +500,32 @@ class _ReportCard extends StatelessWidget {
   }
 }
 
+class _GlowIconButton extends StatelessWidget {
+  const _GlowIconButton({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleOnTap(
+      onTap: onTap,
+      child: Container(
+        width: 34,
+        height: 34,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color.withOpacity(0.10),
+          border: Border.all(color: color.withOpacity(0.25)),
+        ),
+        child: Icon(icon, size: 16, color: color),
+      ),
+    );
+  }
+}

@@ -28,6 +28,7 @@ class CeoApprovalsCubit extends Cubit<CeoApprovalsState> {
         for (final a in state.approvals)
           if (a.id == id) (a..status = ApprovalStatus.approved) else a
       ],
+      
       decisionTimes: {...state.decisionTimes, id: DateTime.now()},
     ));
   }

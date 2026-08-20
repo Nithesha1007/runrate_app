@@ -326,6 +326,18 @@ class _Pill extends StatelessWidget {
   }
 }
 
+/// "Personal information" card — clean, neutral, professional.
+///
+/// Design notes:
+///  - Single flat surface (`colors.surfaceElevated`) with a hairline
+///    border (`colors.border`) and a soft, low-opacity shadow for depth.
+///    No gradients, no purple glow.
+///  - Section header uses a plain icon in a tinted circle (8% primary
+///    opacity) instead of a gradient badge.
+///  - Each field is a standard bordered `TextFormField` with a leading
+///    icon and a label above it; focus state simply switches the border
+///    color/width — familiar, readable, and consistent with typical
+///    settings-screen UI.
 class _EditableFieldsCard extends StatelessWidget {
   const _EditableFieldsCard({
     required this.nameController,
@@ -344,47 +356,225 @@ class _EditableFieldsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: colors.surfaceElevated,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Personal information',
-              style: AppTypography.h3(colors.textPrimary)),
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colors.primary.withValues(alpha: 0.08),
+                ),
+                child: Icon(Icons.badge_outlined,
+                    size: 16, color: colors.primary),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Personal information',
+                        style: AppTypography.h3(colors.textPrimary)),
+                    Text(
+                      'Synced to your workspace profile',
+                      style: AppTypography.caption(colors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          _CleanField(
+            label: 'Full name',
+            icon: Icons.person_outline,
+            controller: nameController,
+          ),
           const SizedBox(height: AppSpacing.md),
-          _FieldLabel('Full name'),
-          TextFormField(controller: nameController),
-          const SizedBox(height: AppSpacing.md),
-          _FieldLabel('Email'),
-          TextFormField(
+          _CleanField(
+            label: 'Email',
+            icon: Icons.alternate_email,
             initialValue: email,
             enabled: false,
-            decoration: InputDecoration(
-              suffixIcon: Icon(Icons.verified, size: 18, color: colors.success),
-              helperText:
-                  'Verified · contact an admin to change your login email',
-            ),
+            trailing: Icon(Icons.verified, size: 16, color: colors.success),
+            helperText:
+                'Verified · contact an admin to change your login email',
           ),
           const SizedBox(height: AppSpacing.md),
-          _FieldLabel('Phone'),
-          TextFormField(
+          _CleanField(
+            label: 'Phone',
+            icon: Icons.phone_outlined,
             controller: phoneController,
             keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(hintText: '+91 00000 00000'),
+            hintText: '+91 00000 00000',
           ),
           const SizedBox(height: AppSpacing.md),
-          _FieldLabel('Department'),
-          TextFormField(controller: departmentController),
+          _CleanField(
+            label: 'Department',
+            icon: Icons.apartment_outlined,
+            controller: departmentController,
+          ),
           const SizedBox(height: AppSpacing.md),
-          _FieldLabel('Engineering team'),
-          TextFormField(controller: teamController),
+          _CleanField(
+            label: 'Engineering team',
+            icon: Icons.groups_outlined,
+            controller: teamController,
+          ),
         ],
       ),
+    );
+  }
+}
+
+/// A single bordered, icon-led field.
+///
+/// Focus state is expressed conventionally: border color shifts to
+/// `colors.primary` and width goes from 1 → 1.5. No glow, no gradient.
+class _CleanField extends StatefulWidget {
+  const _CleanField({
+    required this.label,
+    required this.icon,
+    this.controller,
+    this.initialValue,
+    this.enabled = true,
+    this.keyboardType,
+    this.hintText,
+    this.helperText,
+    this.trailing,
+  });
+
+  final String label;
+  final IconData icon;
+  final TextEditingController? controller;
+  final String? initialValue;
+  final bool enabled;
+  final TextInputType? keyboardType;
+  final String? hintText;
+  final String? helperText;
+  final Widget? trailing;
+
+  @override
+  State<_CleanField> createState() => _CleanFieldState();
+}
+
+class _CleanFieldState extends State<_CleanField> {
+  final FocusNode _focusNode = FocusNode();
+  bool _focused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(() {
+      if (_focused != _focusNode.hasFocus) {
+        setState(() => _focused = _focusNode.hasFocus);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    final active = _focused && widget.enabled;
+
+    final borderColor = !widget.enabled
+        ? colors.border.withValues(alpha: 0.6)
+        : (active ? colors.primary : colors.border);
+
+    final fillColor = !widget.enabled
+        ? colors.border.withValues(alpha: 0.06)
+        : colors.background;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              widget.label,
+              style: AppTypography.label(colors.textSecondary)
+                  .copyWith(fontWeight: FontWeight.w600),
+            ),
+            if (widget.trailing != null) ...[
+              const Spacer(),
+              widget.trailing!,
+            ],
+          ],
+        ),
+        const SizedBox(height: 6),
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          decoration: BoxDecoration(
+            color: fillColor,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: borderColor,
+              width: active ? 1.5 : 1,
+            ),
+          ),
+          child: TextFormField(
+            controller: widget.controller,
+            initialValue:
+                widget.controller == null ? widget.initialValue : null,
+            focusNode: _focusNode,
+            enabled: widget.enabled,
+            keyboardType: widget.keyboardType,
+            style: AppTypography.bodyLarge(
+              widget.enabled ? colors.textPrimary : colors.textSecondary,
+            ),
+            decoration: InputDecoration(
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
+              border: InputBorder.none,
+              hintText: widget.hintText,
+              hintStyle: AppTypography.bodyLarge(
+                  colors.textSecondary.withValues(alpha: 0.5)),
+              prefixIcon: Icon(
+                widget.icon,
+                size: 18,
+                color: !widget.enabled
+                    ? colors.textSecondary.withValues(alpha: 0.5)
+                    : (active ? colors.primary : colors.textSecondary),
+              ),
+              prefixIconConstraints:
+                  const BoxConstraints(minWidth: 40, minHeight: 20),
+            ),
+          ),
+        ),
+        if (widget.helperText != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            widget.helperText!,
+            style: AppTypography.caption(colors.textSecondary),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -444,20 +634,6 @@ class _ReadOnlyRow extends StatelessWidget {
                 Text(label, style: AppTypography.body(colors.textSecondary))),
         Text(value, style: AppTypography.bodyLarge(colors.textPrimary)),
       ],
-    );
-  }
-}
-
-class _FieldLabel extends StatelessWidget {
-  const _FieldLabel(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-      child: Text(text, style: AppTypography.label(colors.textSecondary)),
     );
   }
 }
