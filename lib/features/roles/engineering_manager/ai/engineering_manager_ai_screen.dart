@@ -10,7 +10,7 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/glow_background.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/chat_bubble.dart';
+
 import '../../../../shared/widgets/typing_indicator.dart';
 
 /// Engineering Manager · AI Copilot — same layout/animations as the CEO
