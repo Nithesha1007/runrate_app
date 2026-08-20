@@ -131,8 +131,7 @@ class CeoMoreScreen extends StatelessWidget {
                   onTap: () => _showInfoDialog(
                     context,
                     title: 'AI Policy',
-                    body:
-                        'All AI-assisted spend recommendations are advisory. '
+                    body: 'All AI-assisted spend recommendations are advisory. '
                         'Final approval always requires CEO or CFO sign-off, and every '
                         'AI-generated suggestion is logged for audit.',
                   ),
@@ -359,8 +358,9 @@ class _ProfileHeroCard extends StatelessWidget {
     final profile = context.watch<ProfileCubit>().state;
     final name = profile.name.isEmpty ? 'Your Name' : profile.name;
     final role = profile.role.isEmpty ? 'CEO' : profile.role;
-    final organization =
-        profile.organization.isEmpty ? 'Your Organization' : profile.organization;
+    final organization = profile.organization.isEmpty
+        ? 'Your Organization'
+        : profile.organization;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(28),
@@ -392,25 +392,39 @@ class _ProfileHeroCard extends StatelessWidget {
               height: 72,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border:
-                    Border.all(color: Colors.white.withValues(alpha: 0.6), width: 2),
+                border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.6), width: 2),
                 color: Colors.white.withValues(alpha: 0.16),
-                image: (profile.avatarUrl != null &&
-                        profile.avatarUrl!.isNotEmpty)
-                    ? DecorationImage(
-                        image: profile.avatarUrl!.startsWith('http')
-                            ? NetworkImage(profile.avatarUrl!)
-                                as ImageProvider
-                            : FileImage(File(profile.avatarUrl!)),
-                        fit: BoxFit.cover,
-                      )
-                    : null,
               ),
               alignment: Alignment.center,
-              child: (profile.avatarUrl == null || profile.avatarUrl!.isEmpty)
+              child: profile.avatarUrl == null || profile.avatarUrl!.isEmpty
                   ? Text(profile.initials.isEmpty ? '?' : profile.initials,
                       style: AppTypography.h2(Colors.white))
-                  : null,
+                  : ClipOval(
+                      child: profile.avatarUrl!.startsWith('http')
+                          ? Image.network(
+                              profile.avatarUrl!,
+                              width: 72,
+                              height: 72,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Text(
+                                  profile.initials.isEmpty
+                                      ? '?'
+                                      : profile.initials,
+                                  style: AppTypography.h2(Colors.white)),
+                            )
+                          : Image.file(
+                              File(profile.avatarUrl!),
+                              width: 72,
+                              height: 72,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Text(
+                                  profile.initials.isEmpty
+                                      ? '?'
+                                      : profile.initials,
+                                  style: AppTypography.h2(Colors.white)),
+                            ),
+                    ),
             ),
             const SizedBox(width: AppSpacing.lg),
             Expanded(

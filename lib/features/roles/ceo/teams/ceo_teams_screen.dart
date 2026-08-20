@@ -19,14 +19,16 @@ import '../../../../shared/widgets/empty_state.dart';
 
 /// CEO · Teams — org-wide department view.
 ///
-/// v2: adds a period selector, extended CEO filters (High Spend / Low
-/// Adoption / Over Budget), a sort control, richer department cards
-/// (budget · adoption · top tool · trend sparkline), and an
-/// "Executive Signals" section — all computed client-side from the
-/// TeamModel fields already exposed via DepartmentSummary.team
-/// (spend, monthlyBudget, budgetUsedPercent, aiAdoption, aiRoi,
-/// productivityScore, activeAiTools, topAiTool, monthlyTrend). No
-/// changes to models, repository, cubit, or state were required.
+/// v3: removed the top "Org health overview" KPI hero card, and
+/// stripped the department cards down to what matters at a glance —
+/// name, lead, member count, health status, and spend vs. budget.
+/// Dropped from each card: the trend arrow/percentage, the AI-tool
+/// line, and the Adoption/Budget/Productivity mini-stat row. Tapping
+/// a card still opens the full team roster (CeoTeamMembersScreen) for
+/// anyone who wants the detail that used to live inline.
+///
+/// Search, filters, sort, period selector, and the Insights section
+/// below the list are unchanged.
 ///
 /// NOTE — Period selector (This Month / This Quarter / YTD): the
 /// existing repository only exposes a single current snapshot per
@@ -163,13 +165,6 @@ class _CeoTeamsViewState extends State<_CeoTeamsView> {
                           const SizedBox(height: AppSpacing.xl),
                           _Staggered(
                             index: 0,
-                            child: state.loading
-                                ? const _HeroShimmer()
-                                : _TeamsHeroCard(state: state),
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          _Staggered(
-                            index: 1,
                             child: _PeriodSelector(
                               selected: _period,
                               onSelect: (p) {
@@ -180,7 +175,7 @@ class _CeoTeamsViewState extends State<_CeoTeamsView> {
                           ),
                           const SizedBox(height: AppSpacing.xl),
                           _Staggered(
-                            index: 2,
+                            index: 1,
                             child: _ThemedSearchField(
                               hint: 'Search by department or lead',
                               onChanged: (q) =>
@@ -189,7 +184,7 @@ class _CeoTeamsViewState extends State<_CeoTeamsView> {
                           ),
                           const SizedBox(height: AppSpacing.md),
                           _Staggered(
-                            index: 3,
+                            index: 2,
                             child: _FilterRow(
                               departments: state.allDepartments,
                               selected: _filter,
@@ -199,7 +194,7 @@ class _CeoTeamsViewState extends State<_CeoTeamsView> {
                           const SizedBox(height: AppSpacing.lg),
                           if (!state.loading && visible.isNotEmpty)
                             _Staggered(
-                              index: 4,
+                              index: 3,
                               child: _SortHeaderRow(
                                 selected: _sort,
                                 onSelect: (s) => setState(() => _sort = s),
@@ -219,7 +214,7 @@ class _CeoTeamsViewState extends State<_CeoTeamsView> {
                         separatorBuilder: (_, __) =>
                             const SizedBox(height: AppSpacing.md),
                         itemBuilder: (_, __) =>
-                            const SkeletonLoader(height: 132),
+                            const SkeletonLoader(height: 108),
                       ),
                     )
                   else if (visible.isEmpty)
@@ -252,7 +247,7 @@ class _CeoTeamsViewState extends State<_CeoTeamsView> {
                           final dept = visible[i];
                           return _Staggered(
                             key: ValueKey(dept.team.name),
-                            index: i + 5,
+                            index: i + 4,
                             child: _DepartmentCard(
                               summary: dept,
                               onTap: () => _openMembers(context, dept),
@@ -269,7 +264,7 @@ class _CeoTeamsViewState extends State<_CeoTeamsView> {
                           AppSpacing.xl, 0, AppSpacing.xl, 100),
                       sliver: SliverToBoxAdapter(
                         child: _Staggered(
-                          index: visible.length + 6,
+                          index: visible.length + 5,
                           child: _ExecutiveSignalsSection(
                               departments: state.allDepartments),
                         ),
@@ -411,7 +406,7 @@ class _ScaleOnTapState extends State<_ScaleOnTap> {
 }
 
 // ---------------------------------------------------------------------------
-// THEMED SEARCH FIELD (unchanged from v1)
+// THEMED SEARCH FIELD (unchanged)
 // ---------------------------------------------------------------------------
 class _ThemedSearchField extends StatefulWidget {
   const _ThemedSearchField({required this.hint, required this.onChanged});
@@ -515,255 +510,8 @@ class _ThemedSearchFieldState extends State<_ThemedSearchField> {
 }
 
 // ---------------------------------------------------------------------------
-// HERO CARD (unchanged core, still animated ring / count-up)
+// Currency helpers (still used by department cards & Insights section)
 // ---------------------------------------------------------------------------
-class _TeamsHeroCard extends StatelessWidget {
-  const _TeamsHeroCard({required this.state});
-  final CeoTeamsState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    final total = state.allDepartments.length;
-    final onTrack = state.allDepartments
-        .where((d) => d.health == DepartmentHealth.onTrack)
-        .length;
-    final atRisk = state.allDepartments
-        .where((d) => d.health == DepartmentHealth.atRisk)
-        .length;
-    final critical = state.allDepartments
-        .where((d) => d.health == DepartmentHealth.critical)
-        .length;
-    final healthScore = total == 0 ? 0.0 : onTrack / total;
-    final totalSpend =
-        state.allDepartments.fold<double>(0, (s, d) => s + d.team.spend);
-    final avgAdoption = total == 0
-        ? 0.0
-        : state.allDepartments.fold<double>(0, (s, d) => s + d.team.aiAdoption) /
-            total;
-    final avgBudgetUsed = total == 0
-        ? 0.0
-        : state.allDepartments
-                .fold<double>(0, (s, d) => s + d.team.budgetUsedPercent) /
-            total;
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(28),
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(28),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              colors.primary,
-              colors.secondary,
-              colors.primary.withValues(alpha: 0.85),
-            ],
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text('Org health overview',
-                      style: AppTypography.h3(Colors.white)),
-                ),
-                _StatusPill(
-                  label: critical > 0
-                      ? '$critical critical'
-                      : atRisk > 0
-                          ? '$atRisk at risk'
-                          : 'All healthy',
-                  color: critical > 0
-                      ? colors.danger
-                      : atRisk > 0
-                          ? colors.warning
-                          : colors.success,
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 92,
-                  height: 92,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      SizedBox(
-                        width: 92,
-                        height: 92,
-                        child: CircularProgressIndicator(
-                          value: 1,
-                          strokeWidth: 9,
-                          strokeCap: StrokeCap.round,
-                          valueColor: AlwaysStoppedAnimation(
-                              Colors.white.withValues(alpha: 0.18)),
-                        ),
-                      ),
-                      TweenAnimationBuilder<double>(
-                        tween: Tween(begin: 0.0, end: healthScore),
-                        duration: const Duration(milliseconds: 1100),
-                        curve: Curves.easeOutCubic,
-                        builder: (context, value, _) => SizedBox(
-                          width: 92,
-                          height: 92,
-                          child: CircularProgressIndicator(
-                            value: value,
-                            strokeWidth: 9,
-                            strokeCap: StrokeCap.round,
-                            backgroundColor: Colors.transparent,
-                            valueColor:
-                                const AlwaysStoppedAnimation(Colors.white),
-                          ),
-                        ),
-                      ),
-                      _AnimatedCounterText(
-                        target: (healthScore * 100).round(),
-                        suffix: '%',
-                        style: AppTypography.h3(Colors.white),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.xl),
-                Expanded(
-                  child: Wrap(
-                    spacing: AppSpacing.sm,
-                    runSpacing: AppSpacing.sm,
-                    children: [
-                      _StatChip(
-                          label: 'Employees', value: '${state.totalEmployees}'),
-                      _StatChip(
-                          label: 'Spend', value: _compactCurrency(totalSpend)),
-                      _StatChip(
-                          label: 'Adoption',
-                          value: '${avgAdoption.toStringAsFixed(0)}%'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Row(
-              children: [
-                Icon(Icons.trending_up_rounded,
-                    color: Colors.white.withValues(alpha: 0.85), size: 16),
-                const SizedBox(width: 4),
-                Text('↑ 6.4% vs previous period',
-                    style: AppTypography.caption(
-                        Colors.white.withValues(alpha: 0.9))),
-                const Spacer(),
-                _ScaleOnTap(
-                  onTap: () => _showBreakdownSheet(
-                      context, onTrack, atRisk, critical, avgBudgetUsed),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('View breakdown',
-                          style: AppTypography.caption(Colors.white)
-                              .copyWith(fontWeight: FontWeight.w700)),
-                      const Icon(Icons.chevron_right_rounded,
-                          color: Colors.white, size: 16),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                _MetricPill(label: 'Departments', value: '$total'),
-                _MetricPill(label: 'On track', value: '$onTrack'),
-                _MetricPill(label: 'At risk', value: '${atRisk + critical}'),
-                _MetricPill(
-                    label: 'Budget used',
-                    value: '${avgBudgetUsed.toStringAsFixed(0)}%'),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showBreakdownSheet(BuildContext context, int onTrack, int atRisk,
-      int critical, double avgBudgetUsed) {
-    final colors = AppColors.of(context);
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: colors.surfaceElevated,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Health breakdown', style: AppTypography.h3(colors.textPrimary)),
-            const SizedBox(height: AppSpacing.md),
-            _BreakdownRow(label: 'On track', value: onTrack, color: colors.success),
-            _BreakdownRow(label: 'At risk', value: atRisk, color: colors.warning),
-            _BreakdownRow(label: 'Critical', value: critical, color: colors.danger),
-            const SizedBox(height: AppSpacing.sm),
-            Text('Avg budget utilization: ${avgBudgetUsed.toStringAsFixed(0)}%',
-                style: AppTypography.caption(colors.textSecondary)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BreakdownRow extends StatelessWidget {
-  const _BreakdownRow(
-      {required this.label, required this.value, required this.color});
-  final String label;
-  final int value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-              child: Text(label, style: AppTypography.body(colors.textPrimary))),
-          Text('$value',
-              style: AppTypography.body(colors.textPrimary)
-                  .copyWith(fontWeight: FontWeight.w700)),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeroShimmer extends StatelessWidget {
-  const _HeroShimmer();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SkeletonLoader(height: 260);
-  }
-}
-
 final _amountFormat = NumberFormat('#,##0');
 String _formatAmount(double value) => _amountFormat.format(value);
 
@@ -773,111 +521,8 @@ String _compactCurrency(double value) {
   return _formatAmount(value);
 }
 
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label, required this.color});
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 6),
-          Text(label, style: AppTypography.caption(Colors.white)),
-        ],
-      ),
-    );
-  }
-}
-
-class _AnimatedCounterText extends StatelessWidget {
-  const _AnimatedCounterText({
-    required this.target,
-    required this.style,
-    this.suffix = '',
-  });
-
-  final int target;
-  final TextStyle style;
-  final String suffix;
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<int>(
-      tween: IntTween(begin: 0, end: target),
-      duration: const Duration(milliseconds: 900),
-      curve: Curves.easeOutCubic,
-      builder: (context, value, _) => Text('$value$suffix', style: style),
-    );
-  }
-}
-
-class _StatChip extends StatelessWidget {
-  const _StatChip({required this.label, required this.value});
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('$label: ',
-              style:
-                  AppTypography.caption(Colors.white.withValues(alpha: 0.8))),
-          Text(value,
-              style: AppTypography.caption(Colors.white)
-                  .copyWith(fontWeight: FontWeight.w700)),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetricPill extends StatelessWidget {
-  const _MetricPill({required this.label, required this.value});
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text('$label · $value',
-          style: AppTypography.caption(Colors.white)
-              .copyWith(fontWeight: FontWeight.w600)),
-    );
-  }
-}
-
 // ---------------------------------------------------------------------------
-// PERIOD SELECTOR — new (section 4)
+// PERIOD SELECTOR (unchanged)
 // ---------------------------------------------------------------------------
 class _PeriodSelector extends StatelessWidget {
   const _PeriodSelector({required this.selected, required this.onSelect});
@@ -931,7 +576,7 @@ class _PeriodSelector extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// FILTER ROW — health filters + CEO filters (sections 5)
+// FILTER ROW (unchanged)
 // ---------------------------------------------------------------------------
 class _FilterRow extends StatelessWidget {
   const _FilterRow({
@@ -1020,7 +665,7 @@ class _FilterRow extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// SORT ROW — "Department Performance" ranking control (section 8)
+// SORT ROW (unchanged)
 // ---------------------------------------------------------------------------
 const Map<_SortKey, String> _kSortLabels = {
   _SortKey.health: 'Health',
@@ -1028,10 +673,6 @@ const Map<_SortKey, String> _kSortLabels = {
   _SortKey.adoption: 'Adoption',
 };
 
-/// 'Department performance' section header with a single filter icon
-/// (replaces the old horizontal sort-chip row, which cluttered the UI
-/// and clipped on smaller screens). The active sort is still visible at
-/// a glance via the small 'Sort: X ▾' label next to the icon.
 class _SortHeaderRow extends StatelessWidget {
   const _SortHeaderRow({required this.selected, required this.onSelect});
   final _SortKey selected;
@@ -1134,8 +775,7 @@ class _SortHeaderRow extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// EXECUTIVE SIGNALS — section 9. Derived purely from existing TeamModel
-// fields already on DepartmentSummary.team: no repo change required.
+// EXECUTIVE SIGNALS (unchanged)
 // ---------------------------------------------------------------------------
 class _Signal {
   final IconData icon;
@@ -1444,11 +1084,16 @@ class _DeptAvatar extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// SPARKLINE — subtle per-card trend line (section 7)
-// ---------------------------------------------------------------------------
-// ---------------------------------------------------------------------------
-// DEPARTMENT CARD — v2: budget / adoption / top tool / trend + sparkline,
-// with a clear primary → secondary → tertiary hierarchy (section 6).
+// DEPARTMENT CARD — v3: stripped to essentials.
+//
+// Kept: avatar, name, lead + member count, health badge, spend vs.
+// budget with a slim progress bar, and a "View team roster" footer
+// that mirrors the card's own tap target.
+//
+// Removed: the trend arrow/percentage, the AI-tool line, and the
+// Adoption/Budget/Productivity mini-stat row — all per your last
+// message. Those numbers are still visible in full on the team
+// roster screen this card opens.
 // ---------------------------------------------------------------------------
 class _DepartmentCard extends StatelessWidget {
   final DepartmentSummary summary;
@@ -1477,13 +1122,12 @@ class _DepartmentCard extends StatelessWidget {
     final colors = AppColors.of(context);
     final team = summary.team;
     final healthColor = _healthColor(colors, summary.health);
-    final trend = team.monthlyTrend;
-    final trendDelta = trend.length >= 2
-        ? ((trend.last - trend[trend.length - 2]) /
-                (trend[trend.length - 2] == 0 ? 1 : trend[trend.length - 2])) *
-            100
-        : 0.0;
-    final trendUp = trendDelta >= 0;
+    final budgetPct = (team.budgetUsedPercent / 100).clamp(0.0, 1.0);
+    final budgetBarColor = team.budgetUsedPercent >= 100
+        ? colors.danger
+        : team.budgetUsedPercent >= 90
+            ? colors.warning
+            : colors.primary;
 
     return _ScaleOnTap(
       onTap: onTap,
@@ -1493,11 +1137,18 @@ class _DepartmentCard extends StatelessWidget {
           color: colors.surfaceElevated,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: colors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- Primary: department + health + spend -------------------
+            // --- Identity: department + lead + health -------------------
             Row(
               children: [
                 _DeptAvatar(name: team.name),
@@ -1539,6 +1190,7 @@ class _DepartmentCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.md),
+            // --- Spend vs. budget, with a slim progress indicator -------
             Row(
               children: [
                 Icon(Icons.currency_rupee_rounded,
@@ -1550,118 +1202,47 @@ class _DepartmentCard extends StatelessWidget {
                       .copyWith(fontWeight: FontWeight.w700),
                 ),
                 const Spacer(),
-                Text('Health ', style: AppTypography.caption(colors.textSecondary)),
-                Text(team.aiRoi.isNaN ? '—' : team.budgetUsedPercent.toStringAsFixed(0),
-                    style: AppTypography.body(colors.textPrimary)
-                        .copyWith(fontWeight: FontWeight.w700)),
+                Text(
+                  '${team.budgetUsedPercent.toStringAsFixed(0)}% used',
+                  style: AppTypography.caption(colors.textSecondary),
+                ),
               ],
+            ),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: SizedBox(
+                height: 4,
+                child: Stack(
+                  children: [
+                    Container(color: colors.border),
+                    FractionallySizedBox(
+                      widthFactor: budgetPct,
+                      child: Container(color: budgetBarColor),
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: AppSpacing.sm),
             Divider(color: colors.border, height: 1),
             const SizedBox(height: AppSpacing.sm),
-            // --- Secondary: adoption + budget + users --------------------
+            // --- Footer: clear affordance to open the full roster -------
             Row(
               children: [
-                _MiniStat(
-                  label: 'Adoption',
-                  value: '${team.aiAdoption.toStringAsFixed(0)}%',
-                  colors: colors,
+                Text(
+                  'View team roster',
+                  style: AppTypography.caption(colors.primary)
+                      .copyWith(fontWeight: FontWeight.w700),
                 ),
-                const SizedBox(width: AppSpacing.lg),
-                _MiniStat(
-                  label: 'Budget',
-                  value: '${team.budgetUsedPercent.toStringAsFixed(0)}%',
-                  colors: colors,
-                  valueColor: team.budgetUsedPercent >= 100
-                      ? colors.danger
-                      : team.budgetUsedPercent >= 90
-                          ? colors.warning
-                          : colors.textPrimary,
-                ),
-                const SizedBox(width: AppSpacing.lg),
-                _MiniStat(
-                  label: 'Productivity',
-                  value: team.productivityScore.toStringAsFixed(0),
-                  colors: colors,
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            // --- Tertiary: tool + trend ------------------------------------
-            Row(
-              children: [
-                Icon(Icons.hub_outlined, size: 14, color: colors.textSecondary),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    team.topAiTool,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.caption(colors.textSecondary),
-                  ),
-                ),
-                if (trend.length >= 2) ...[
-                  Icon(
-                    trendDelta.abs() < 0.05
-                        ? Icons.trending_flat_rounded
-                        : trendUp
-                            ? Icons.trending_up_rounded
-                            : Icons.trending_down_rounded,
-                    size: 15,
-                    color: trendDelta.abs() < 0.05
-                        ? colors.textSecondary
-                        : trendUp
-                            ? colors.success
-                            : colors.danger,
-                  ),
-                  const SizedBox(width: 2),
-                  Text(
-                    '${trendDelta.abs().toStringAsFixed(1)}%',
-                    style: AppTypography.caption(trendDelta.abs() < 0.05
-                            ? colors.textSecondary
-                            : trendUp
-                                ? colors.success
-                                : colors.danger)
-                        .copyWith(fontWeight: FontWeight.w700),
-                  ),
-                ],
-                const SizedBox(width: 4),
+                const Spacer(),
                 Icon(Icons.chevron_right_rounded,
-                    color: colors.textSecondary, size: 18),
+                    color: colors.primary, size: 18),
               ],
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _MiniStat extends StatelessWidget {
-  const _MiniStat({
-    required this.label,
-    required this.value,
-    required this.colors,
-    this.valueColor,
-  });
-  final String label;
-  final String value;
-  final AppColorsData colors;
-  final Color? valueColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppTypography.caption(colors.textSecondary)),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: AppTypography.caption(valueColor ?? colors.textPrimary)
-              .copyWith(fontWeight: FontWeight.w700),
-        ),
-      ],
     );
   }
 }

@@ -7,24 +7,23 @@ import 'package:runrate/features/roles/ceo/shared/widgets/chat_bubble.dart';
 import '../data/ceo_mock_repository.dart';
 import 'ceo_ai_cubit.dart';
 import 'ceo_ai_state.dart';
+import '../more/profile_cubit.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/glow_background.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/chat_bubble.dart';
 import '../../../../shared/widgets/typing_indicator.dart';
-
 
 /// CEO · AI Copilot — Claude-style layout: hamburger opens a left sidebar
 /// with "New Chat" + past conversation history, header stays minimal, and
 /// the chat itself supports attaching an image/PDF/file before sending via
 /// a single black "+" button that opens a bottom-sheet menu.
 class CeoAiScreen extends StatelessWidget {
- const CeoAiScreen({super.key, this.userName = 'Alex'});
+  const CeoAiScreen({super.key, this.userName});
 
   /// TODO: wire to the logged-in CEO's real first name once available.
-  final String userName;
-  
+  final String? userName;
+
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
@@ -36,7 +35,7 @@ class CeoAiScreen extends StatelessWidget {
 
 class _CeoAiView extends StatefulWidget {
   const _CeoAiView({required this.userName});
-  final String userName;
+  final String? userName;
 
   @override
   State<_CeoAiView> createState() => _CeoAiViewState();
@@ -140,6 +139,9 @@ class _CeoAiViewState extends State<_CeoAiView> {
         child: SafeArea(
           child: BlocBuilder<CeoAiCubit, CeoAiState>(
             builder: (context, state) {
+              final profileName = context.watch<ProfileCubit>().state.name;
+              final greetingName = widget.userName ??
+                  (profileName.isEmpty ? 'Alex' : profileName.split(' ').first);
               final showEmptyState = state.messages.isEmpty;
               return Stack(
                 children: [
@@ -166,7 +168,7 @@ class _CeoAiViewState extends State<_CeoAiView> {
                           child: showEmptyState
                               ? _EmptyStateChat(
                                   key: const ValueKey('empty'),
-                                  userName: widget.userName,
+                                  userName: greetingName,
                                   onPrompt: (text) => _send(context, text),
                                 )
                               : _MessageList(
@@ -629,11 +631,10 @@ class _MessageList extends StatelessWidget {
                   child: TypingIndicator()));
         }
         final message = state.messages[i];
-return _MessageEntrance(
-  key: ValueKey(message.id),
-  child: ChatBubble(message: message),   // <- already wired
-);
-
+        return _MessageEntrance(
+          key: ValueKey(message.id),
+          child: ChatBubble(message: message), // <- already wired
+        );
       },
     );
   }
@@ -868,8 +869,8 @@ class _AttachMenuButton extends StatelessWidget {
       child: Container(
         width: 34,
         height: 34,
-        decoration: const BoxDecoration(
-            color: Colors.black, shape: BoxShape.circle),
+        decoration:
+            const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
         child: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
       ),
     );
@@ -921,9 +922,7 @@ class _AttachMenuSheet extends StatelessWidget {
             _AttachOptionTile(
                 icon: Icons.image_rounded, label: 'Photo', onTap: onImage),
             _AttachOptionTile(
-                icon: Icons.picture_as_pdf_rounded,
-                label: 'PDF',
-                onTap: onPdf),
+                icon: Icons.picture_as_pdf_rounded, label: 'PDF', onTap: onPdf),
             _AttachOptionTile(
                 icon: Icons.folder_open_rounded,
                 label: 'Browse files',

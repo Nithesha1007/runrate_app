@@ -14,13 +14,20 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   setupDependencies();
   final initialThemeMode = await ThemeCubit.loadSavedThemeMode();
-  runApp(RunrateApp(initialThemeMode: initialThemeMode));
+  final profileCubit = ProfileCubit();
+  await profileCubit.hydrate();
+  runApp(RunrateApp(
+    initialThemeMode: initialThemeMode,
+    profileCubit: profileCubit,
+  ));
 }
 
 class RunrateApp extends StatelessWidget {
   final ThemeMode initialThemeMode;
+  final ProfileCubit? profileCubit;
 
-  const RunrateApp({super.key, required this.initialThemeMode});
+  const RunrateApp(
+      {super.key, required this.initialThemeMode, this.profileCubit});
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +36,7 @@ class RunrateApp extends StatelessWidget {
         BlocProvider(create: (_) => ThemeCubit(initialMode: initialThemeMode)),
         BlocProvider(create: (_) => AuthCubit(getIt<MockAuthRepository>())),
         BlocProvider(create: (_) => NotificationsCubit()),
-        BlocProvider(create: (_) => ProfileCubit()..hydrate()),
+        BlocProvider(create: (_) => profileCubit ?? ProfileCubit()),
       ],
       child: BlocBuilder<ThemeCubit, ThemeMode>(
         builder: (context, mode) {

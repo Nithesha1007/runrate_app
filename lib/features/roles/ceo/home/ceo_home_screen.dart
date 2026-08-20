@@ -1,4 +1,6 @@
 // ceo_home_screen.dart
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:runrate/features/roles/ceo/home/ai_usage_details_screen.dart';
@@ -13,10 +15,13 @@ import '../../../../core/routes/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_colors_data.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../more/profile_cubit.dart';
 
 /// CEO Home dashboard — company-wide rollup across every department.
 /// Section order: Header, Critical Alert banner, Company AI Overview hero,
-/// Quick Actions, Key Executive Metrics (4-card KPI grid), AI Usage &
+/// Quick Actions, Key Executive Metrics (2-card KPI row: Active AI Users,
+/// Unused Licenses — Total AI Spend and AI Adoption % removed, both are
+/// already shown in the hero card and department cards), AI Usage &
 /// Adoption, Budget Health, Department Performance, AI Strategic Insights,
 /// Executive Approvals, Today's Focus. Company Snapshot, Company Health
 /// Score, and Recent Executive Decisions were removed — each duplicated a
@@ -75,6 +80,7 @@ class _CeoHomeViewState extends State<_CeoHomeView>
             }
           },
           builder: (context, state) {
+            final profile = context.watch<ProfileCubit>().state;
             return switch (state) {
               CeoHomeInitial() || CeoHomeLoading() => const _LoadingView(),
               CeoHomeError(:final message) => _ErrorView(
@@ -94,8 +100,13 @@ class _CeoHomeViewState extends State<_CeoHomeView>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _HomeHeader(
-                            ceoName: data.ceoName,
-                            companyName: data.companyName,
+                            ceoName: profile.name.isEmpty
+                                ? data.ceoName
+                                : profile.name,
+                            companyName: profile.organization.isEmpty
+                                ? data.companyName
+                                : profile.organization,
+                            avatarPath: profile.avatarPath,
                             todayLabel: data.todayLabel,
                             greeting: data.greeting,
                             hasUnread: data.hasUnreadNotifications,
@@ -140,8 +151,7 @@ class _CeoHomeViewState extends State<_CeoHomeView>
                             index: 3,
                             child: _AiUsageAdoptionSection(
                               tools: data.aiToolUsage,
-                              onViewAll: () =>
-                                  _openAiUsageDetail(context),
+                              onViewAll: () => _openAiUsageDetail(context),
                             ),
                           ),
                           const SizedBox(height: AppSpacing.xl),
@@ -158,30 +168,30 @@ class _CeoHomeViewState extends State<_CeoHomeView>
                                   _openDepartmentDashboard(context, dept),
                             ),
                           ),
-                          const SizedBox(height: AppSpacing.xl),
-                          _Staggered(
-                            index: 6,
-                            child: _StrategicInsightsSection(
-                                insights: data.insights),
-                          ),
-                          const SizedBox(height: AppSpacing.xl),
-                          _Staggered(
-                            index: 7,
-                            child: _EscalatedApprovalsSection(
-                              requests: data.escalatedApprovals,
-                              onApprove: (id) => context
-                                  .read<CeoHomeCubit>()
-                                  .approveEscalation(id),
-                              onReject: (id, reason, note) => context
-                                  .read<CeoHomeCubit>()
-                                  .rejectEscalation(id,
-                                      reason: reason, note: note),
-                              onDelegate: (id, delegateTo) => context
-                                  .read<CeoHomeCubit>()
-                                  .delegateEscalation(id,
-                                      delegateTo: delegateTo),
-                            ),
-                          ),
+                          // const SizedBox(height: AppSpacing.xl),
+                          // _Staggered(
+                          //   index: 6,
+                          //   child: _StrategicInsightsSection(
+                          //       insights: data.insights),
+                          // ),
+                          // const SizedBox(height: AppSpacing.xl),
+                          // _Staggered(
+                          //   index: 7,
+                          //   child: _EscalatedApprovalsSection(
+                          //     requests: data.escalatedApprovals,
+                          //     onApprove: (id) => context
+                          //         .read<CeoHomeCubit>()
+                          //         .approveEscalation(id),
+                          //     onReject: (id, reason, note) => context
+                          //         .read<CeoHomeCubit>()
+                          //         .rejectEscalation(id,
+                          //             reason: reason, note: note),
+                          //     onDelegate: (id, delegateTo) => context
+                          //         .read<CeoHomeCubit>()
+                          //         .delegateEscalation(id,
+                          //             delegateTo: delegateTo),
+                          //   ),
+                          // ),
                           const SizedBox(height: AppSpacing.xl),
                           _Staggered(
                             index: 8,
@@ -391,6 +401,7 @@ class _HomeHeader extends StatelessWidget {
   const _HomeHeader({
     required this.ceoName,
     required this.companyName,
+    required this.avatarPath,
     required this.todayLabel,
     required this.greeting,
     required this.hasUnread,
@@ -399,6 +410,7 @@ class _HomeHeader extends StatelessWidget {
 
   final String ceoName;
   final String companyName;
+  final String? avatarPath;
   final String todayLabel;
   final String greeting;
   final bool hasUnread;
@@ -423,14 +435,14 @@ class _HomeHeader extends StatelessWidget {
                       child: CircleAvatar(
                         radius: 22,
                         backgroundColor: colors.primaryLight,
-                        child: Text(
-                          ceoName
+                        child: _HeaderAvatarImage(
+                          path: avatarPath,
+                          initials: ceoName
                               .split(' ')
                               .map((e) => e.isNotEmpty ? e[0] : '')
                               .take(2)
                               .join()
                               .toUpperCase(),
-                          style: AppTypography.h3(colors.primary),
                         ),
                       ),
                     ),
@@ -1091,6 +1103,12 @@ class _SectionHeader extends StatelessWidget {
 
 // ---------------------------------------------------------------------------
 // QUICK ACTIONS
+//
+// v2 — subtitles ("Strategic copilot", "Full spend rollup", etc.) removed:
+// they were pure decoration that didn't add information beyond the title
+// and were costing extra vertical space on a screen that already has a lot
+// of content. Cards are now compact single-row tiles (icon + title) at a
+// wider aspect ratio so the whole grid takes noticeably less height.
 // ---------------------------------------------------------------------------
 class _QuickActionsGrid extends StatelessWidget {
   const _QuickActionsGrid({required this.items, required this.onTap});
@@ -1118,46 +1136,41 @@ class _QuickActionsGrid extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: AppSpacing.md,
           mainAxisSpacing: AppSpacing.md,
-          childAspectRatio: 1.4,
+          childAspectRatio: 2.3,
           children: List.generate(visible.length, (i) {
             final item = visible[i];
             final accent = _accents[i % _accents.length];
             return _ScaleOnTap(
               onTap: () => onTap(item),
               child: Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md, vertical: AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: colors.surfaceElevated,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: colors.border),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
+                child: Row(
                   children: [
                     Container(
-                      width: 32,
-                      height: 32,
+                      width: 34,
+                      height: 34,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(11),
                         gradient: LinearGradient(colors: accent),
                       ),
-                      child: Icon(item.icon, color: Colors.white, size: 16),
+                      child: Icon(item.icon, color: Colors.white, size: 17),
                     ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      item.title,
-                      style: AppTypography.body(colors.textPrimary)
-                          .copyWith(fontWeight: FontWeight.w600),
-                      maxLines: 2,
-                      softWrap: true,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      item.subtitle,
-                      style: AppTypography.caption(colors.textSecondary),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        item.title,
+                        style: AppTypography.body(colors.textPrimary)
+                            .copyWith(fontWeight: FontWeight.w600),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: true,
+                      ),
                     ),
                   ],
                 ),
@@ -1171,8 +1184,15 @@ class _QuickActionsGrid extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// KEY EXECUTIVE METRICS — exactly 4 cards: Total AI Spend, Active AI Users,
-// AI Adoption %, Unused Licenses.
+// KEY EXECUTIVE METRICS
+//
+// v2 — "Total AI Spend" and "AI Adoption %" removed from this section
+// (they're already surfaced in the hero card's Spend chip and in each
+// department's adoption ring, so repeating them here was redundant). Only
+// "Active AI Users" and "Unused Licenses" remain. With just two cards this
+// now renders as a single premium-looking row instead of a 2x2 grid, so
+// each card gets more room: bigger number, trend pill, icon badge with a
+// soft shadow.
 // ---------------------------------------------------------------------------
 class _KpiGrid extends StatelessWidget {
   const _KpiGrid({required this.kpis});
@@ -1180,80 +1200,114 @@ class _KpiGrid extends StatelessWidget {
   final List<CeoKpiCardData> kpis;
 
   static const _accents = [
-    Color(0xFF6C5CE7),
-    Color(0xFF2F80ED),
-    Color(0xFF11998E),
-    Color(0xFFE85D75),
+    [Color(0xFF2F80ED), Color(0xFF56CCF2)],
+    [Color(0xFFE85D75), Color(0xFFF2994A)],
+    [Color(0xFF6C5CE7), Color(0xFF8E7CFF)],
+    [Color(0xFF11998E), Color(0xFF38EF7D)],
   ];
+
+  bool _isExcluded(String label) {
+    final l = label.toLowerCase();
+    return l.contains('total ai spend') || l.contains('ai adoption');
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final visible = kpis.take(4).toList();
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: AppSpacing.md,
-      mainAxisSpacing: AppSpacing.md,
-      childAspectRatio: 1.15,
+    final visible = kpis.where((k) => !_isExcluded(k.label)).take(2).toList();
+    if (visible.isEmpty) return const SizedBox.shrink();
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: List.generate(visible.length, (i) {
         final kpi = visible[i];
         final accent = _accents[i % _accents.length];
         final isPositive = kpi.trendValue >= 0;
-        return TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0, end: 1),
-          duration: Duration(milliseconds: 400 + i * 60),
-          curve: Curves.easeOutCubic,
-          builder: (context, value, child) => Opacity(
-            opacity: value,
-            child: Transform.scale(scale: 0.92 + 0.08 * value, child: child),
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: colors.surfaceElevated,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: colors.border),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: accent.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(kpi.icon, color: accent, size: 16),
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(
+                right: i == visible.length - 1 ? 0 : AppSpacing.md),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: Duration(milliseconds: 400 + i * 80),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, child) => Opacity(
+                opacity: value,
+                child: Transform.translate(
+                    offset: Offset(0, (1 - value) * 12), child: child),
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                decoration: BoxDecoration(
+                  color: colors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: colors.border),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent[0].withValues(alpha: 0.10),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
                     ),
-                    const Spacer(),
-                    if (kpi.trendValue != 0)
-                      Text(kpi.trend,
-                          style: AppTypography.caption(
-                              isPositive ? colors.success : colors.danger)),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(kpi.value, style: AppTypography.h3(colors.textPrimary)),
-                const SizedBox(height: 2),
-                Text(
-                  kpi.label,
-                  style: AppTypography.caption(colors.textPrimary)
-                      .copyWith(fontWeight: FontWeight.w600),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(11),
+                            gradient: LinearGradient(colors: accent),
+                          ),
+                          child: Icon(kpi.icon, color: Colors.white, size: 18),
+                        ),
+                        const Spacer(),
+                        if (kpi.trendValue != 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color:
+                                  (isPositive ? colors.success : colors.danger)
+                                      .withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              kpi.trend,
+                              style: AppTypography.caption(isPositive
+                                      ? colors.success
+                                      : colors.danger)
+                                  .copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 11),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(kpi.value,
+                        style: AppTypography.h3(colors.textPrimary)
+                            .copyWith(fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 3),
+                    Text(
+                      kpi.label,
+                      style: AppTypography.caption(colors.textPrimary)
+                          .copyWith(fontWeight: FontWeight.w600),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      kpi.subtitle,
+                      style: AppTypography.caption(colors.textSecondary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-                Text(
-                  kpi.subtitle,
-                  style: AppTypography.caption(colors.textSecondary),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+              ),
             ),
           ),
         );
@@ -1266,13 +1320,16 @@ class _KpiGrid extends StatelessWidget {
 // AI USAGE & ADOPTION — top tools with user count, usage level, spend.
 // Lives on its own, not inside Department Performance.
 //
-// v2 — the old layout crammed name / users / level pill / spend into one
-// horizontal row per tool, which got tight enough on narrower screens that
-// it read as cluttered rather than scannable. This redesign gives each tool
-// its own card: icon (color-coded by usage level) + name + spend up top,
-// user count + level pill below, and a level-colored mini progress bar
-// along the bottom — the same visual language as the tool cards on the
-// full AI Usage detail screen, just condensed to fit four on Home.
+// v3 — removed the numbered rank badge (the small "1", "2" circle) since it
+// added visual noise without adding information — the cards are already
+// listed in spend order. The generic Material icon per tool is replaced
+// with the tool's real brand mark (ChatGPT/OpenAI, Claude/Anthropic,
+// GitHub Copilot, Gemini) pulled in as a small logo image with a graceful
+// icon fallback if the image fails to load, so the card reads like a real
+// vendor catalog entry rather than a placeholder icon. Layout is otherwise
+// the same condensed card used elsewhere: name + vendor/category up top,
+// spend + level pill on the right, a stat row (Users / Adoption /
+// Cost per user), and a gradient progress bar along the bottom.
 // ---------------------------------------------------------------------------
 class _AiUsageAdoptionSection extends StatelessWidget {
   const _AiUsageAdoptionSection({
@@ -1313,50 +1370,75 @@ class _AiUsageAdoptionSection extends StatelessWidget {
         for (var i = 0; i < visible.length; i++)
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: _AiUsageToolCard(tool: visible[i], rank: i + 1),
+            child: _AiUsageToolCard(tool: visible[i]),
           ),
       ],
     );
   }
 }
 
-IconData _iconForAiTool(String name) {
-  final n = name.toLowerCase();
-  if (n.contains('chatgpt')) return Icons.chat_bubble_rounded;
-  if (n.contains('copilot')) return Icons.code_rounded;
-  if (n.contains('claude')) return Icons.auto_awesome_rounded;
-  if (n.contains('gemini')) return Icons.diamond_outlined;
-  return Icons.smart_toy_rounded;
+/// Brand info for a known AI tool: a real logo image, vendor, and category
+/// — plus a fallback icon in case the image fails to load (offline, blocked
+/// network, etc).
+class _AiToolBrand {
+  const _AiToolBrand({
+    required this.logoUrl,
+    required this.vendor,
+    required this.category,
+    required this.fallbackIcon,
+  });
+
+  final String logoUrl;
+  final String vendor;
+  final String category;
+  final IconData fallbackIcon;
 }
 
-/// (vendor, category) shown as a subtitle under the tool name — turns a
-/// bare tool name into something that reads like a real software catalog
-/// entry, matching the reference "Tool Utilization" cards.
-(String, String) _vendorCategoryForAiTool(String name) {
+_AiToolBrand _brandForAiTool(String name) {
   final n = name.toLowerCase();
-  if (n.contains('chatgpt')) return ('OpenAI', 'Generative AI');
-  if (n.contains('copilot')) return ('Microsoft', 'Dev Tools');
-  if (n.contains('claude')) return ('Anthropic', 'Generative AI');
-  if (n.contains('gemini')) return ('Google', 'Generative AI');
-  return ('Third-party', 'AI Tool');
+  if (n.contains('chatgpt') || n.contains('gpt')) {
+    return const _AiToolBrand(
+      logoUrl: 'https://logo.clearbit.com/openai.com',
+      vendor: 'OpenAI',
+      category: 'Generative AI',
+      fallbackIcon: Icons.chat_bubble_rounded,
+    );
+  }
+  if (n.contains('copilot')) {
+    return const _AiToolBrand(
+      logoUrl: 'https://logo.clearbit.com/github.com',
+      vendor: 'Microsoft',
+      category: 'Dev Tools',
+      fallbackIcon: Icons.code_rounded,
+    );
+  }
+  if (n.contains('claude')) {
+    return const _AiToolBrand(
+      logoUrl: 'https://logo.clearbit.com/anthropic.com',
+      vendor: 'Anthropic',
+      category: 'Generative AI',
+      fallbackIcon: Icons.auto_awesome_rounded,
+    );
+  }
+  if (n.contains('gemini')) {
+    return const _AiToolBrand(
+      logoUrl: 'https://logo.clearbit.com/google.com',
+      vendor: 'Google',
+      category: 'Generative AI',
+      fallbackIcon: Icons.diamond_outlined,
+    );
+  }
+  return const _AiToolBrand(
+    logoUrl: '',
+    vendor: 'Third-party',
+    category: 'AI Tool',
+    fallbackIcon: Icons.smart_toy_rounded,
+  );
 }
 
-/// AI Usage tool card — v2.
-///
-/// The plain "name / spend / users / level pill / bar" layout worked but
-/// read as a basic list row rather than a proper catalog entry. This
-/// version adds: a rank badge (spend-ranked, since `tools` already arrives
-/// sorted by spend from the cubit), a vendor • category subtitle under the
-/// name (via `_vendorCategoryForAiTool`), a three-column stat row (Users /
-/// Adoption / Cost per user — adoption and cost-per-user are derived from
-/// `usageLevel` and `spend`/`userCount` since the Home summary model
-/// doesn't carry a raw adoption rate), and a gradient (not flat) progress
-/// bar. This is the same information density as the tool cards on the full
-/// AI Usage detail screen, condensed to fit four on Home.
 class _AiUsageToolCard extends StatelessWidget {
-  const _AiUsageToolCard({required this.tool, required this.rank});
+  const _AiUsageToolCard({required this.tool});
   final AiToolUsage tool;
-  final int rank;
 
   Color _levelColor(AppColorsData colors) {
     switch (tool.usageLevel) {
@@ -1386,24 +1468,25 @@ class _AiUsageToolCard extends StatelessWidget {
         AiUsageLevel.low => 0.24,
       };
 
-  double get _costPerUser => tool.userCount == 0 ? 0 : tool.spend / tool.userCount;
+  double get _costPerUser =>
+      tool.userCount == 0 ? 0 : tool.spend / tool.userCount;
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     final levelColor = _levelColor(colors);
-    final (vendor, category) = _vendorCategoryForAiTool(tool.toolName);
+    final brand = _brandForAiTool(tool.toolName);
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: colors.surfaceElevated,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: colors.border),
         boxShadow: [
           BoxShadow(
-            color: colors.textPrimary.withValues(alpha: 0.03),
-            blurRadius: 10,
+            color: colors.textPrimary.withValues(alpha: 0.04),
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
@@ -1414,39 +1497,28 @@ class _AiUsageToolCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: levelColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                    child: Icon(_iconForAiTool(tool.toolName),
-                        color: levelColor, size: 20),
-                  ),
-                  Positioned(
-                    top: -6,
-                    left: -6,
-                    child: Container(
-                      width: 18,
-                      height: 18,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: colors.textPrimary,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: colors.surfaceElevated, width: 2),
-                      ),
-                      child: Text(
-                        '$rank',
-                        style: AppTypography.caption(colors.surfaceElevated)
-                            .copyWith(fontWeight: FontWeight.w800, fontSize: 9),
-                      ),
-                    ),
-                  ),
-                ],
+              Container(
+                width: 44,
+                height: 44,
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: colors.border),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: brand.logoUrl.isEmpty
+                      ? Icon(brand.fallbackIcon, color: levelColor, size: 20)
+                      : Image.network(
+                          brand.logoUrl,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stack) => Icon(
+                              brand.fallbackIcon,
+                              color: levelColor,
+                              size: 20),
+                        ),
+                ),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
@@ -1461,7 +1533,7 @@ class _AiUsageToolCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      '$vendor · $category',
+                      '${brand.vendor} · ${brand.category}',
                       style: AppTypography.caption(colors.textSecondary),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1477,7 +1549,7 @@ class _AiUsageToolCard extends StatelessWidget {
                       style: AppTypography.body(colors.textPrimary)
                           .copyWith(fontWeight: FontWeight.w700)),
                   Container(
-                    margin: const EdgeInsets.only(top: 2),
+                    margin: const EdgeInsets.only(top: 3),
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
@@ -1485,8 +1557,8 @@ class _AiUsageToolCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(_levelLabel(),
-                        style: AppTypography.caption(levelColor)
-                            .copyWith(fontWeight: FontWeight.w700, fontSize: 10)),
+                        style: AppTypography.caption(levelColor).copyWith(
+                            fontWeight: FontWeight.w700, fontSize: 10)),
                   ),
                 ],
               ),
@@ -1565,7 +1637,8 @@ class _AiUsageToolCard extends StatelessWidget {
 }
 
 class _MiniStat extends StatelessWidget {
-  const _MiniStat({required this.label, required this.value, required this.colors});
+  const _MiniStat(
+      {required this.label, required this.value, required this.colors});
   final String label;
   final String value;
   final AppColorsData colors;
@@ -1578,7 +1651,9 @@ class _MiniStat extends StatelessWidget {
         Text(value,
             style: AppTypography.caption(colors.textPrimary)
                 .copyWith(fontWeight: FontWeight.w700)),
-        Text(label, style: AppTypography.caption(colors.textSecondary).copyWith(fontSize: 10)),
+        Text(label,
+            style: AppTypography.caption(colors.textSecondary)
+                .copyWith(fontSize: 10)),
       ],
     );
   }
@@ -1589,6 +1664,14 @@ class _MiniStat extends StatelessWidget {
 // ring, animated spend-vs-budget progress bar, status badge, View Details.
 // Top-tool line removed — tool usage now lives only in the AI Usage &
 // Adoption section.
+//
+// v2 — redesigned card: bigger rounded-square department image, the status
+// badge moved up next to the trend arrow (right by the name, where it's
+// read first) instead of sitting alone at the bottom, and the spend figures
+// + progress bar now share one soft inset row so the numbers and the bar
+// read as a single unit rather than two disconnected lines. A tinted
+// drop-shadow (colored by the department's status) replaces the flat
+// border-only look for a bit more depth.
 // ---------------------------------------------------------------------------
 class _DepartmentBreakdownSection extends StatelessWidget {
   const _DepartmentBreakdownSection({
@@ -1653,15 +1736,26 @@ class _DepartmentCard extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
           color: colors.surfaceElevated,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: colors.border),
+          boxShadow: [
+            BoxShadow(
+              color: statusColor.withValues(alpha: 0.07),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _DeptAvatar(name: dept.name, size: 44),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: _DeptAvatar(name: dept.name, size: 48),
+                ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(
@@ -1672,22 +1766,32 @@ class _DepartmentCard extends StatelessWidget {
                           Expanded(
                             child: Text(dept.name,
                                 style: AppTypography.body(colors.textPrimary)
-                                    .copyWith(fontWeight: FontWeight.w600),
+                                    .copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 15),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis),
                           ),
                           Icon(_trendIcon,
-                              size: 16, color: _trendColor(colors)),
+                              size: 15, color: _trendColor(colors)),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(_statusLabelFor(status),
+                                style: AppTypography.caption(statusColor)
+                                    .copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 10)),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 3),
                       Text('${dept.headName} · ${dept.headcount} people',
-                          style: AppTypography.caption(colors.textSecondary),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                      const SizedBox(height: 4),
-                      Text(
-                          '\$${_compact(dept.spend)} of \$${_compact(dept.budget)}',
                           style: AppTypography.caption(colors.textSecondary),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis),
@@ -1696,8 +1800,8 @@ class _DepartmentCard extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 SizedBox(
-                  width: 38,
-                  height: 38,
+                  width: 40,
+                  height: 40,
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
@@ -1717,19 +1821,34 @@ class _DepartmentCard extends StatelessWidget {
                 ),
               ],
             ),
-
-            // -----------------------------------------------------------
-            // Animated department spend-vs-budget progress bar. Uses the
-            // same statusColor (healthy/warning/critical) as the badge
-            // below, and the same TweenAnimationBuilder pattern as the
-            // company-wide budget health card for a consistent feel.
-            // -----------------------------------------------------------
-            const SizedBox(height: AppSpacing.sm),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: ClipRRect(
+            const SizedBox(height: AppSpacing.md),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: colors.surface,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text('\$${_compact(dept.spend)} ',
+                          style: AppTypography.caption(colors.textPrimary)
+                              .copyWith(fontWeight: FontWeight.w700)),
+                      Text('of \$${_compact(dept.budget)} budget',
+                          style: AppTypography.caption(colors.textSecondary)),
+                      const Spacer(),
+                      Text(
+                        '${(dept.utilization * 100).toInt()}%',
+                        style: AppTypography.caption(statusColor)
+                            .copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  ClipRRect(
                     borderRadius: BorderRadius.circular(999),
                     child: TweenAnimationBuilder<double>(
                       tween: Tween(
@@ -1746,33 +1865,16 @@ class _DepartmentCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Text(
-                  '${(dept.utilization * 100).toInt()}%',
-                  style: AppTypography.caption(statusColor)
-                      .copyWith(fontWeight: FontWeight.w700),
-                ),
-              ],
+                ],
+              ),
             ),
-
-            const SizedBox(height: AppSpacing.sm),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(_statusLabelFor(status),
-                      style: AppTypography.caption(statusColor)
-                          .copyWith(fontWeight: FontWeight.w700)),
-                ),
-                const Spacer(),
-                _ScaleOnTap(
-                  onTap: onTap,
+            const SizedBox(height: AppSpacing.xs),
+            Align(
+              alignment: Alignment.centerRight,
+              child: _ScaleOnTap(
+                onTap: onTap,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 4),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -1784,7 +1886,7 @@ class _DepartmentCard extends StatelessWidget {
                     ],
                   ),
                 ),
-              ],
+              ),
             ),
           ],
         ),
@@ -1797,659 +1899,659 @@ class _DepartmentCard extends StatelessWidget {
 // AI STRATEGIC INSIGHTS — top 3 only, each with icon + priority badge +
 // timestamp + Read more.
 // ---------------------------------------------------------------------------
-class _StrategicInsightsSection extends StatelessWidget {
-  const _StrategicInsightsSection({required this.insights});
+// class _StrategicInsightsSection extends StatelessWidget {
+//   const _StrategicInsightsSection({required this.insights});
 
-  final List<StrategicInsightData> insights;
+//   final List<StrategicInsightData> insights;
 
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _SectionHeader(title: 'AI strategic insights'),
-        const SizedBox(height: AppSpacing.md),
-        ...insights.take(3).map((insight) => Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: _InsightCard(insight: insight),
-            )),
-      ],
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     return Column(
+//       crossAxisAlignment: CrossAxisAlignment.start,
+//       children: [
+//         const _SectionHeader(title: 'AI strategic insights'),
+//         const SizedBox(height: AppSpacing.md),
+//         ...insights.take(3).map((insight) => Padding(
+//               padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+//               child: _InsightCard(insight: insight),
+//             )),
+//       ],
+//     );
+//   }
+// }
 
-class _InsightCard extends StatefulWidget {
-  const _InsightCard({required this.insight});
+// class _InsightCard extends StatefulWidget {
+//   const _InsightCard({required this.insight});
 
-  final StrategicInsightData insight;
+//   final StrategicInsightData insight;
 
-  @override
-  State<_InsightCard> createState() => _InsightCardState();
-}
+//   @override
+//   State<_InsightCard> createState() => _InsightCardState();
+// }
 
-class _InsightCardState extends State<_InsightCard> {
-  bool _expanded = false;
+// class _InsightCardState extends State<_InsightCard> {
+//   bool _expanded = false;
 
-  ({Color color, String label}) _style(AppColorsData colors) {
-    switch (widget.insight.impact) {
-      case StrategicImpact.costSaving:
-        return (color: colors.success, label: 'Cost saving');
-      case StrategicImpact.risk:
-        return (color: colors.danger, label: 'Risk');
-      case StrategicImpact.growth:
-        return (color: colors.primary, label: 'Growth');
-    }
-  }
+//   ({Color color, String label}) _style(AppColorsData colors) {
+//     switch (widget.insight.impact) {
+//       case StrategicImpact.costSaving:
+//         return (color: colors.success, label: 'Cost saving');
+//       case StrategicImpact.risk:
+//         return (color: colors.danger, label: 'Risk');
+//       case StrategicImpact.growth:
+//         return (color: colors.primary, label: 'Growth');
+//     }
+//   }
 
-  Color _priorityColor(AppColorsData colors) {
-    switch (widget.insight.priority.toLowerCase()) {
-      case 'high':
-        return colors.danger;
-      case 'medium':
-        return colors.warning;
-      default:
-        return colors.info;
-    }
-  }
+//   Color _priorityColor(AppColorsData colors) {
+//     switch (widget.insight.priority.toLowerCase()) {
+//       case 'high':
+//         return colors.danger;
+//       case 'medium':
+//         return colors.warning;
+//       default:
+//         return colors.info;
+//     }
+//   }
 
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    final s = _style(colors);
-    final insight = widget.insight;
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: s.color.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: s.color.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: s.color.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: Icon(insight.icon, color: s.color, size: 18),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(insight.title,
-                          style: AppTypography.body(colors.textPrimary)
-                              .copyWith(fontWeight: FontWeight.w600),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: s.color.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child:
-                          Text(s.label, style: AppTypography.caption(s.color)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(insight.description,
-                    style: AppTypography.caption(colors.textSecondary),
-                    maxLines: _expanded ? null : 2,
-                    overflow: _expanded
-                        ? TextOverflow.visible
-                        : TextOverflow.ellipsis),
-                const SizedBox(height: AppSpacing.xs),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: _priorityColor(colors).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(insight.priority.toUpperCase(),
-                          style: AppTypography.caption(_priorityColor(colors))
-                              .copyWith(
-                                  fontWeight: FontWeight.w700, fontSize: 10)),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(insight.timestampLabel,
-                        style: AppTypography.caption(colors.textSecondary)),
-                    const Spacer(),
-                    _ScaleOnTap(
-                      onTap: () => setState(() => _expanded = !_expanded),
-                      child: Text(_expanded ? 'Show less' : 'Read more',
-                          style: AppTypography.caption(s.color)
-                              .copyWith(fontWeight: FontWeight.w700)),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     final colors = AppColors.of(context);
+//     final s = _style(colors);
+//     final insight = widget.insight;
+//     return Container(
+//       padding: const EdgeInsets.all(AppSpacing.md),
+//       decoration: BoxDecoration(
+//         color: s.color.withValues(alpha: 0.06),
+//         borderRadius: BorderRadius.circular(16),
+//         border: Border.all(color: s.color.withValues(alpha: 0.25)),
+//       ),
+//       child: Row(
+//         crossAxisAlignment: CrossAxisAlignment.start,
+//         children: [
+//           Container(
+//             width: 36,
+//             height: 36,
+//             decoration: BoxDecoration(
+//               color: s.color.withValues(alpha: 0.14),
+//               borderRadius: BorderRadius.circular(11),
+//             ),
+//             child: Icon(insight.icon, color: s.color, size: 18),
+//           ),
+//           const SizedBox(width: AppSpacing.md),
+//           Expanded(
+//             child: Column(
+//               crossAxisAlignment: CrossAxisAlignment.start,
+//               children: [
+//                 Row(
+//                   children: [
+//                     Expanded(
+//                       child: Text(insight.title,
+//                           style: AppTypography.body(colors.textPrimary)
+//                               .copyWith(fontWeight: FontWeight.w600),
+//                           maxLines: 1,
+//                           overflow: TextOverflow.ellipsis),
+//                     ),
+//                     Container(
+//                       padding: const EdgeInsets.symmetric(
+//                           horizontal: AppSpacing.sm, vertical: 2),
+//                       decoration: BoxDecoration(
+//                         color: s.color.withValues(alpha: 0.14),
+//                         borderRadius: BorderRadius.circular(999),
+//                       ),
+//                       child:
+//                           Text(s.label, style: AppTypography.caption(s.color)),
+//                     ),
+//                   ],
+//                 ),
+//                 const SizedBox(height: 4),
+//                 Text(insight.description,
+//                     style: AppTypography.caption(colors.textSecondary),
+//                     maxLines: _expanded ? null : 2,
+//                     overflow: _expanded
+//                         ? TextOverflow.visible
+//                         : TextOverflow.ellipsis),
+//                 const SizedBox(height: AppSpacing.xs),
+//                 Row(
+//                   children: [
+//                     Container(
+//                       padding: const EdgeInsets.symmetric(
+//                           horizontal: 8, vertical: 2),
+//                       decoration: BoxDecoration(
+//                         color: _priorityColor(colors).withValues(alpha: 0.12),
+//                         borderRadius: BorderRadius.circular(999),
+//                       ),
+//                       child: Text(insight.priority.toUpperCase(),
+//                           style: AppTypography.caption(_priorityColor(colors))
+//                               .copyWith(
+//                                   fontWeight: FontWeight.w700, fontSize: 10)),
+//                     ),
+//                     const SizedBox(width: 6),
+//                     Text(insight.timestampLabel,
+//                         style: AppTypography.caption(colors.textSecondary)),
+//                     const Spacer(),
+//                     _ScaleOnTap(
+//                       onTap: () => setState(() => _expanded = !_expanded),
+//                       child: Text(_expanded ? 'Show less' : 'Read more',
+//                           style: AppTypography.caption(s.color)
+//                               .copyWith(fontWeight: FontWeight.w700)),
+//                     ),
+//                   ],
+//                 ),
+//               ],
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+// }
 
-// ---------------------------------------------------------------------------
-// EXECUTIVE APPROVALS — vendor, purpose, monthly/annual cost, risk badge,
-// reason, Approve / Reject / View Details / Delegate.
-// ---------------------------------------------------------------------------
-class _EscalatedApprovalsSection extends StatelessWidget {
-  const _EscalatedApprovalsSection({
-    required this.requests,
-    required this.onApprove,
-    required this.onReject,
-    required this.onDelegate,
-  });
+// // ---------------------------------------------------------------------------
+// // EXECUTIVE APPROVALS — vendor, purpose, monthly/annual cost, risk badge,
+// // reason, Approve / Reject / View Details / Delegate.
+// // ---------------------------------------------------------------------------
+// // class _EscalatedApprovalsSection extends StatelessWidget {
+// //   const _EscalatedApprovalsSection({
+// //     required this.requests,
+// //     required this.onApprove,
+// //     required this.onReject,
+// //     required this.onDelegate,
+// //   });
 
-  final List<EscalatedApprovalData> requests;
-  final ValueChanged<String> onApprove;
-  final void Function(String id, String reason, String? note) onReject;
-  final void Function(String id, String delegateTo) onDelegate;
+// //   final List<EscalatedApprovalData> requests;
+// //   final ValueChanged<String> onApprove;
+// //   final void Function(String id, String reason, String? note) onReject;
+// //   final void Function(String id, String delegateTo) onDelegate;
 
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _SectionHeader(title: 'Executive approvals'),
-        const SizedBox(height: AppSpacing.md),
-        if (requests.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            decoration: BoxDecoration(
-              color: colors.surfaceElevated,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: colors.border),
-            ),
-            child: Text('Nothing needs your sign-off right now.',
-                style: AppTypography.body(colors.textSecondary)),
-          )
-        else
-          ...requests.map((request) => Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: _EscalatedApprovalCard(
-                  request: request,
-                  onApprove: () => onApprove(request.id),
-                  onReject: (reason, note) =>
-                      onReject(request.id, reason, note),
-                  onDelegate: (delegateTo) =>
-                      onDelegate(request.id, delegateTo),
-                ),
-              )),
-      ],
-    );
-  }
-}
+// //   @override
+// //   Widget build(BuildContext context) {
+// //     final colors = AppColors.of(context);
+// //     return Column(
+// //       crossAxisAlignment: CrossAxisAlignment.start,
+// //       children: [
+// //         const _SectionHeader(title: 'Executive approvals'),
+// //         const SizedBox(height: AppSpacing.md),
+// //         if (requests.isEmpty)
+// //           Container(
+// //             padding: const EdgeInsets.all(AppSpacing.lg),
+// //             decoration: BoxDecoration(
+// //               color: colors.surfaceElevated,
+// //               borderRadius: BorderRadius.circular(16),
+// //               border: Border.all(color: colors.border),
+// //             ),
+// //             child: Text('Nothing needs your sign-off right now.',
+// //                 style: AppTypography.body(colors.textSecondary)),
+// //           )
+// //         else
+// //           ...requests.map((request) => Padding(
+// //                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+// //                 child: _EscalatedApprovalCard(
+// //                   request: request,
+// //                   onApprove: () => onApprove(request.id),
+// //                   onReject: (reason, note) =>
+// //                       onReject(request.id, reason, note),
+// //                   onDelegate: (delegateTo) =>
+// //                       onDelegate(request.id, delegateTo),
+// //                 ),
+// //               )),
+// //       ],
+// //     );
+// //   }
+// // }
 
-class _EscalatedApprovalCard extends StatelessWidget {
-  const _EscalatedApprovalCard({
-    required this.request,
-    required this.onApprove,
-    required this.onReject,
-    required this.onDelegate,
-  });
+// class _EscalatedApprovalCard extends StatelessWidget {
+//   const _EscalatedApprovalCard({
+//     required this.request,
+//     required this.onApprove,
+//     required this.onReject,
+//     required this.onDelegate,
+//   });
 
-  final EscalatedApprovalData request;
-  final VoidCallback onApprove;
-  final void Function(String reason, String? note) onReject;
-  final ValueChanged<String> onDelegate;
+//   final EscalatedApprovalData request;
+//   final VoidCallback onApprove;
+//   final void Function(String reason, String? note) onReject;
+//   final ValueChanged<String> onDelegate;
 
-  Color _priorityColor(AppColorsData colors) {
-    switch (request.priority.toLowerCase()) {
-      case 'high':
-        return colors.danger;
-      case 'medium':
-        return colors.warning;
-      default:
-        return colors.success;
-    }
-  }
+//   Color _priorityColor(AppColorsData colors) {
+//     switch (request.priority.toLowerCase()) {
+//       case 'high':
+//         return colors.danger;
+//       case 'medium':
+//         return colors.warning;
+//       default:
+//         return colors.success;
+//     }
+//   }
 
-  Color _riskColor(AppColorsData colors) {
-    switch (request.riskLevel.toLowerCase()) {
-      case 'high':
-        return colors.danger;
-      case 'medium':
-        return colors.warning;
-      default:
-        return colors.success;
-    }
-  }
+//   Color _riskColor(AppColorsData colors) {
+//     switch (request.riskLevel.toLowerCase()) {
+//       case 'high':
+//         return colors.danger;
+//       case 'medium':
+//         return colors.warning;
+//       default:
+//         return colors.success;
+//     }
+//   }
 
-  Future<void> _openRejectSheet(BuildContext context) async {
-    final result = await showModalBottomSheet<_RejectResult>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _RejectReasonSheet(toolName: request.tool),
-    );
-    if (result != null) {
-      onReject(result.reason, result.note);
-    }
-  }
+//   Future<void> _openRejectSheet(BuildContext context) async {
+//     final result = await showModalBottomSheet<_RejectResult>(
+//       context: context,
+//       isScrollControlled: true,
+//       backgroundColor: Colors.transparent,
+//       builder: (_) => _RejectReasonSheet(toolName: request.tool),
+//     );
+//     if (result != null) {
+//       onReject(result.reason, result.note);
+//     }
+//   }
 
-  Future<void> _openDelegateSheet(BuildContext context) async {
-    final colors = AppColors.of(context);
-    const delegates = [
-      'CFO — Marcus Bell',
-      'COO — Rita Alvarez',
-      'VP Eng — Priya Nair'
-    ];
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => Container(
-        decoration: BoxDecoration(
-          color: colors.background,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.fromLTRB(
-            AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Delegate this approval',
-                style: AppTypography.h3(colors.textPrimary)),
-            const SizedBox(height: AppSpacing.md),
-            for (final d in delegates)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: _ScaleOnTap(
-                  onTap: () => Navigator.of(sheetContext).pop(d),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    decoration: BoxDecoration(
-                      color: colors.surfaceElevated,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: colors.border),
-                    ),
-                    child: Text(d,
-                        style: AppTypography.body(colors.textPrimary)
-                            .copyWith(fontWeight: FontWeight.w600)),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (choice != null) onDelegate(choice);
-  }
+//   Future<void> _openDelegateSheet(BuildContext context) async {
+//     final colors = AppColors.of(context);
+//     const delegates = [
+//       'CFO — Marcus Bell',
+//       'COO — Rita Alvarez',
+//       'VP Eng — Priya Nair'
+//     ];
+//     final choice = await showModalBottomSheet<String>(
+//       context: context,
+//       backgroundColor: Colors.transparent,
+//       builder: (sheetContext) => Container(
+//         decoration: BoxDecoration(
+//           color: colors.background,
+//           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+//         ),
+//         padding: const EdgeInsets.fromLTRB(
+//             AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xl),
+//         child: Column(
+//           mainAxisSize: MainAxisSize.min,
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             Text('Delegate this approval',
+//                 style: AppTypography.h3(colors.textPrimary)),
+//             const SizedBox(height: AppSpacing.md),
+//             for (final d in delegates)
+//               Padding(
+//                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+//                 child: _ScaleOnTap(
+//                   onTap: () => Navigator.of(sheetContext).pop(d),
+//                   child: Container(
+//                     width: double.infinity,
+//                     padding: const EdgeInsets.all(AppSpacing.md),
+//                     decoration: BoxDecoration(
+//                       color: colors.surfaceElevated,
+//                       borderRadius: BorderRadius.circular(14),
+//                       border: Border.all(color: colors.border),
+//                     ),
+//                     child: Text(d,
+//                         style: AppTypography.body(colors.textPrimary)
+//                             .copyWith(fontWeight: FontWeight.w600)),
+//                   ),
+//                 ),
+//               ),
+//           ],
+//         ),
+//       ),
+//     );
+//     if (choice != null) onDelegate(choice);
+//   }
 
-  void _openDetails(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(request.tool),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Vendor: ${request.vendor}'),
-            const SizedBox(height: 6),
-            Text('Purpose: ${request.purpose}'),
-            const SizedBox(height: 6),
-            Text(
-                'Monthly: \$${request.monthlyCost.toInt()} · Annual: \$${request.annualCost.toInt()}'),
-            const SizedBox(height: 6),
-            Text('Risk level: ${request.riskLevel}'),
-            const SizedBox(height: 6),
-            Text('Why CEO approval: ${request.reason}'),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close')),
-        ],
-      ),
-    );
-  }
+//   void _openDetails(BuildContext context) {
+//     showDialog(
+//       context: context,
+//       builder: (_) => AlertDialog(
+//         title: Text(request.tool),
+//         content: Column(
+//           mainAxisSize: MainAxisSize.min,
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             Text('Vendor: ${request.vendor}'),
+//             const SizedBox(height: 6),
+//             Text('Purpose: ${request.purpose}'),
+//             const SizedBox(height: 6),
+//             Text(
+//                 'Monthly: \$${request.monthlyCost.toInt()} · Annual: \$${request.annualCost.toInt()}'),
+//             const SizedBox(height: 6),
+//             Text('Risk level: ${request.riskLevel}'),
+//             const SizedBox(height: 6),
+//             Text('Why CEO approval: ${request.reason}'),
+//           ],
+//         ),
+//         actions: [
+//           TextButton(
+//               onPressed: () => Navigator.of(context).pop(),
+//               child: const Text('Close')),
+//         ],
+//       ),
+//     );
+//   }
 
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    final pColor = _priorityColor(colors);
-    final rColor = _riskColor(colors);
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colors.surfaceElevated,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              _DeptAvatar(name: request.department, size: 32),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(request.department,
-                        style: AppTypography.body(colors.textPrimary)
-                            .copyWith(fontWeight: FontWeight.w600),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                    Text('Requested by ${request.requestedBy}',
-                        style: AppTypography.caption(colors.textSecondary),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm, vertical: 3),
-                decoration: BoxDecoration(
-                  color: pColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(request.priority,
-                    style: AppTypography.caption(pColor)),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text('${request.tool} · ${request.vendor}',
-              style: AppTypography.body(colors.textPrimary)
-                  .copyWith(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 2),
-          Text(request.purpose,
-              style: AppTypography.caption(colors.textSecondary)),
-          const SizedBox(height: AppSpacing.xs),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: 6,
-            children: [
-              Text(
-                  '\$${request.monthlyCost.toInt()}/mo · \$${request.annualCost.toInt()}/yr',
-                  style: AppTypography.caption(colors.textPrimary)
-                      .copyWith(fontWeight: FontWeight.w600)),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: rColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text('${request.riskLevel} risk',
-                    style: AppTypography.caption(rColor)
-                        .copyWith(fontWeight: FontWeight.w700)),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              Expanded(
-                child: _ScaleOnTap(
-                  onTap: () => _openRejectSheet(context),
-                  child: Container(
-                    height: 38,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: colors.danger.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: colors.danger.withValues(alpha: 0.3)),
-                    ),
-                    child: Icon(Icons.close_rounded,
-                        size: 16, color: colors.danger),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: _ScaleOnTap(
-                  onTap: () => _openDetails(context),
-                  child: Container(
-                    height: 38,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: colors.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: colors.border),
-                    ),
-                    child: Icon(Icons.visibility_outlined,
-                        size: 16, color: colors.textSecondary),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: _ScaleOnTap(
-                  onTap: () => _openDelegateSheet(context),
-                  child: Container(
-                    height: 38,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: colors.info.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(12),
-                      border:
-                          Border.all(color: colors.info.withValues(alpha: 0.3)),
-                    ),
-                    child: Icon(Icons.forward_rounded,
-                        size: 16, color: colors.info),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                flex: 2,
-                child: _ScaleOnTap(
-                  onTap: onApprove,
-                  child: Container(
-                    height: 38,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      gradient: LinearGradient(
-                          colors: [colors.primary, colors.secondary]),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.check_rounded,
-                            size: 15, color: Colors.white),
-                        SizedBox(width: 4),
-                        Text('Approve',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     final colors = AppColors.of(context);
+//     final pColor = _priorityColor(colors);
+//     final rColor = _riskColor(colors);
+//     return Container(
+//       padding: const EdgeInsets.all(AppSpacing.md),
+//       decoration: BoxDecoration(
+//         color: colors.surfaceElevated,
+//         borderRadius: BorderRadius.circular(16),
+//         border: Border.all(color: colors.border),
+//       ),
+//       child: Column(
+//         crossAxisAlignment: CrossAxisAlignment.start,
+//         children: [
+//           Row(
+//             children: [
+//               _DeptAvatar(name: request.department, size: 32),
+//               const SizedBox(width: AppSpacing.sm),
+//               Expanded(
+//                 child: Column(
+//                   crossAxisAlignment: CrossAxisAlignment.start,
+//                   children: [
+//                     Text(request.department,
+//                         style: AppTypography.body(colors.textPrimary)
+//                             .copyWith(fontWeight: FontWeight.w600),
+//                         maxLines: 1,
+//                         overflow: TextOverflow.ellipsis),
+//                     Text('Requested by ${request.requestedBy}',
+//                         style: AppTypography.caption(colors.textSecondary),
+//                         maxLines: 1,
+//                         overflow: TextOverflow.ellipsis),
+//                   ],
+//                 ),
+//               ),
+//               Container(
+//                 padding: const EdgeInsets.symmetric(
+//                     horizontal: AppSpacing.sm, vertical: 3),
+//                 decoration: BoxDecoration(
+//                   color: pColor.withValues(alpha: 0.12),
+//                   borderRadius: BorderRadius.circular(999),
+//                 ),
+//                 child: Text(request.priority,
+//                     style: AppTypography.caption(pColor)),
+//               ),
+//             ],
+//           ),
+//           const SizedBox(height: AppSpacing.sm),
+//           Text('${request.tool} · ${request.vendor}',
+//               style: AppTypography.body(colors.textPrimary)
+//                   .copyWith(fontWeight: FontWeight.w600)),
+//           const SizedBox(height: 2),
+//           Text(request.purpose,
+//               style: AppTypography.caption(colors.textSecondary)),
+//           const SizedBox(height: AppSpacing.xs),
+//           Wrap(
+//             spacing: AppSpacing.sm,
+//             runSpacing: 6,
+//             children: [
+//               Text(
+//                   '\$${request.monthlyCost.toInt()}/mo · \$${request.annualCost.toInt()}/yr',
+//                   style: AppTypography.caption(colors.textPrimary)
+//                       .copyWith(fontWeight: FontWeight.w600)),
+//               Container(
+//                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+//                 decoration: BoxDecoration(
+//                   color: rColor.withValues(alpha: 0.12),
+//                   borderRadius: BorderRadius.circular(999),
+//                 ),
+//                 child: Text('${request.riskLevel} risk',
+//                     style: AppTypography.caption(rColor)
+//                         .copyWith(fontWeight: FontWeight.w700)),
+//               ),
+//             ],
+//           ),
+//           const SizedBox(height: AppSpacing.sm),
+//           Row(
+//             children: [
+//               Expanded(
+//                 child: _ScaleOnTap(
+//                   onTap: () => _openRejectSheet(context),
+//                   child: Container(
+//                     height: 38,
+//                     alignment: Alignment.center,
+//                     decoration: BoxDecoration(
+//                       color: colors.danger.withValues(alpha: 0.10),
+//                       borderRadius: BorderRadius.circular(12),
+//                       border: Border.all(
+//                           color: colors.danger.withValues(alpha: 0.3)),
+//                     ),
+//                     child: Icon(Icons.close_rounded,
+//                         size: 16, color: colors.danger),
+//                   ),
+//                 ),
+//               ),
+//               const SizedBox(width: AppSpacing.xs),
+//               Expanded(
+//                 child: _ScaleOnTap(
+//                   onTap: () => _openDetails(context),
+//                   child: Container(
+//                     height: 38,
+//                     alignment: Alignment.center,
+//                     decoration: BoxDecoration(
+//                       color: colors.surface,
+//                       borderRadius: BorderRadius.circular(12),
+//                       border: Border.all(color: colors.border),
+//                     ),
+//                     child: Icon(Icons.visibility_outlined,
+//                         size: 16, color: colors.textSecondary),
+//                   ),
+//                 ),
+//               ),
+//               const SizedBox(width: AppSpacing.xs),
+//               Expanded(
+//                 child: _ScaleOnTap(
+//                   onTap: () => _openDelegateSheet(context),
+//                   child: Container(
+//                     height: 38,
+//                     alignment: Alignment.center,
+//                     decoration: BoxDecoration(
+//                       color: colors.info.withValues(alpha: 0.10),
+//                       borderRadius: BorderRadius.circular(12),
+//                       border:
+//                           Border.all(color: colors.info.withValues(alpha: 0.3)),
+//                     ),
+//                     child: Icon(Icons.forward_rounded,
+//                         size: 16, color: colors.info),
+//                   ),
+//                 ),
+//               ),
+//               const SizedBox(width: AppSpacing.xs),
+//               Expanded(
+//                 flex: 2,
+//                 child: _ScaleOnTap(
+//                   onTap: onApprove,
+//                   child: Container(
+//                     height: 38,
+//                     alignment: Alignment.center,
+//                     decoration: BoxDecoration(
+//                       borderRadius: BorderRadius.circular(12),
+//                       gradient: LinearGradient(
+//                           colors: [colors.primary, colors.secondary]),
+//                     ),
+//                     child: const Row(
+//                       mainAxisSize: MainAxisSize.min,
+//                       children: [
+//                         Icon(Icons.check_rounded,
+//                             size: 15, color: Colors.white),
+//                         SizedBox(width: 4),
+//                         Text('Approve',
+//                             style: TextStyle(
+//                                 color: Colors.white,
+//                                 fontWeight: FontWeight.w600,
+//                                 fontSize: 12)),
+//                       ],
+//                     ),
+//                   ),
+//                 ),
+//               ),
+//             ],
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+// }
 
-class _RejectResult {
-  const _RejectResult(this.reason, this.note);
-  final String reason;
-  final String? note;
-}
+// class _RejectResult {
+//   const _RejectResult(this.reason, this.note);
+//   final String reason;
+//   final String? note;
+// }
 
-class _RejectReasonSheet extends StatefulWidget {
-  const _RejectReasonSheet({required this.toolName});
-  final String toolName;
+// class _RejectReasonSheet extends StatefulWidget {
+//   const _RejectReasonSheet({required this.toolName});
+//   final String toolName;
 
-  @override
-  State<_RejectReasonSheet> createState() => _RejectReasonSheetState();
-}
+//   @override
+//   State<_RejectReasonSheet> createState() => _RejectReasonSheetState();
+// }
 
-class _RejectReasonSheetState extends State<_RejectReasonSheet> {
-  static const _reasons = [
-    'Over department budget',
-    'Duplicate or overlapping tool',
-    'Not aligned with strategy',
-    'Vendor / security concern',
-    'Other',
-  ];
+// class _RejectReasonSheetState extends State<_RejectReasonSheet> {
+//   static const _reasons = [
+//     'Over department budget',
+//     'Duplicate or overlapping tool',
+//     'Not aligned with strategy',
+//     'Vendor / security concern',
+//     'Other',
+//   ];
 
-  String? _selectedReason;
-  final _noteController = TextEditingController();
+//   String? _selectedReason;
+//   final _noteController = TextEditingController();
 
-  @override
-  void dispose() {
-    _noteController.dispose();
-    super.dispose();
-  }
+//   @override
+//   void dispose() {
+//     _noteController.dispose();
+//     super.dispose();
+//   }
 
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+//   @override
+//   Widget build(BuildContext context) {
+//     final colors = AppColors.of(context);
+//     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottomInset),
-      child: SafeArea(
-        top: false,
-        child: Container(
-          decoration: BoxDecoration(
-            color: colors.background,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.fromLTRB(
-              AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xl),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: colors.border,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-              ),
-              Text('Reject request',
-                  style: AppTypography.h3(colors.textPrimary)),
-              const SizedBox(height: 2),
-              Text(widget.toolName,
-                  style: AppTypography.caption(colors.textSecondary)),
-              const SizedBox(height: AppSpacing.lg),
-              Text('Reason',
-                  style: AppTypography.body(colors.textPrimary)
-                      .copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: AppSpacing.sm),
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: _reasons.map((reason) {
-                  final selected = _selectedReason == reason;
-                  return ChoiceChip(
-                    label: Text(reason),
-                    selected: selected,
-                    showCheckmark: false,
-                    onSelected: (_) => setState(() => _selectedReason = reason),
-                    labelStyle: AppTypography.caption(
-                        selected ? Colors.white : colors.textPrimary),
-                    selectedColor: colors.primary,
-                    backgroundColor: colors.surfaceElevated,
-                    side: BorderSide(color: colors.border),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              Text('Add more detail (optional)',
-                  style: AppTypography.body(colors.textPrimary)
-                      .copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: AppSpacing.sm),
-              TextField(
-                controller: _noteController,
-                maxLines: 3,
-                style: AppTypography.body(colors.textPrimary),
-                decoration: InputDecoration(
-                  hintText:
-                      'e.g. Switch to the shared Claude Team plan instead',
-                  hintStyle: AppTypography.caption(colors.textSecondary),
-                  filled: true,
-                  fillColor: colors.surfaceElevated,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: colors.border),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: colors.border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: colors.primary),
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Cancel'),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _selectedReason == null
-                          ? null
-                          : () => Navigator.of(context).pop(
-                                _RejectResult(
-                                  _selectedReason!,
-                                  _noteController.text.trim().isEmpty
-                                      ? null
-                                      : _noteController.text.trim(),
-                                ),
-                              ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colors.danger,
-                        foregroundColor: Colors.white,
-                      ),
-                      child: const Text('Reject'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+//     return Padding(
+//       padding: EdgeInsets.only(bottom: bottomInset),
+//       child: SafeArea(
+//         top: false,
+//         child: Container(
+//           decoration: BoxDecoration(
+//             color: colors.background,
+//             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+//           ),
+//           padding: const EdgeInsets.fromLTRB(
+//               AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xl),
+//           child: Column(
+//             mainAxisSize: MainAxisSize.min,
+//             crossAxisAlignment: CrossAxisAlignment.start,
+//             children: [
+//               Center(
+//                 child: Container(
+//                   width: 40,
+//                   height: 4,
+//                   margin: const EdgeInsets.only(bottom: AppSpacing.md),
+//                   decoration: BoxDecoration(
+//                     color: colors.border,
+//                     borderRadius: BorderRadius.circular(999),
+//                   ),
+//                 ),
+//               ),
+//               Text('Reject request',
+//                   style: AppTypography.h3(colors.textPrimary)),
+//               const SizedBox(height: 2),
+//               Text(widget.toolName,
+//                   style: AppTypography.caption(colors.textSecondary)),
+//               const SizedBox(height: AppSpacing.lg),
+//               Text('Reason',
+//                   style: AppTypography.body(colors.textPrimary)
+//                       .copyWith(fontWeight: FontWeight.w600)),
+//               const SizedBox(height: AppSpacing.sm),
+//               Wrap(
+//                 spacing: AppSpacing.sm,
+//                 runSpacing: AppSpacing.sm,
+//                 children: _reasons.map((reason) {
+//                   final selected = _selectedReason == reason;
+//                   return ChoiceChip(
+//                     label: Text(reason),
+//                     selected: selected,
+//                     showCheckmark: false,
+//                     onSelected: (_) => setState(() => _selectedReason = reason),
+//                     labelStyle: AppTypography.caption(
+//                         selected ? Colors.white : colors.textPrimary),
+//                     selectedColor: colors.primary,
+//                     backgroundColor: colors.surfaceElevated,
+//                     side: BorderSide(color: colors.border),
+//                   );
+//                 }).toList(),
+//               ),
+//               const SizedBox(height: AppSpacing.lg),
+//               Text('Add more detail (optional)',
+//                   style: AppTypography.body(colors.textPrimary)
+//                       .copyWith(fontWeight: FontWeight.w600)),
+//               const SizedBox(height: AppSpacing.sm),
+//               TextField(
+//                 controller: _noteController,
+//                 maxLines: 3,
+//                 style: AppTypography.body(colors.textPrimary),
+//                 decoration: InputDecoration(
+//                   hintText:
+//                       'e.g. Switch to the shared Claude Team plan instead',
+//                   hintStyle: AppTypography.caption(colors.textSecondary),
+//                   filled: true,
+//                   fillColor: colors.surfaceElevated,
+//                   border: OutlineInputBorder(
+//                     borderRadius: BorderRadius.circular(14),
+//                     borderSide: BorderSide(color: colors.border),
+//                   ),
+//                   enabledBorder: OutlineInputBorder(
+//                     borderRadius: BorderRadius.circular(14),
+//                     borderSide: BorderSide(color: colors.border),
+//                   ),
+//                   focusedBorder: OutlineInputBorder(
+//                     borderRadius: BorderRadius.circular(14),
+//                     borderSide: BorderSide(color: colors.primary),
+//                   ),
+//                 ),
+//               ),
+//               const SizedBox(height: AppSpacing.xl),
+//               Row(
+//                 children: [
+//                   Expanded(
+//                     child: OutlinedButton(
+//                       onPressed: () => Navigator.of(context).pop(),
+//                       child: const Text('Cancel'),
+//                     ),
+//                   ),
+//                   const SizedBox(width: AppSpacing.sm),
+//                   Expanded(
+//                     child: ElevatedButton(
+//                       onPressed: _selectedReason == null
+//                           ? null
+//                           : () => Navigator.of(context).pop(
+//                                 _RejectResult(
+//                                   _selectedReason!,
+//                                   _noteController.text.trim().isEmpty
+//                                       ? null
+//                                       : _noteController.text.trim(),
+//                                 ),
+//                               ),
+//                       style: ElevatedButton.styleFrom(
+//                         backgroundColor: colors.danger,
+//                         foregroundColor: Colors.white,
+//                       ),
+//                       child: const Text('Reject'),
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             ],
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+// }
 
 // ---------------------------------------------------------------------------
 // TODAY'S FOCUS — exactly 3 items: Highest Risk Department, Largest
@@ -2625,6 +2727,29 @@ class _ErrorView extends StatelessWidget {
             OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _HeaderAvatarImage extends StatelessWidget {
+  const _HeaderAvatarImage({required this.path, required this.initials});
+
+  final String? path;
+  final String initials;
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback =
+        Text(initials, style: AppTypography.h3(AppColors.of(context).primary));
+    if (path == null || path!.isEmpty) return fallback;
+    return ClipOval(
+      child: Image.file(
+        File(path!),
+        width: 44,
+        height: 44,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback,
       ),
     );
   }

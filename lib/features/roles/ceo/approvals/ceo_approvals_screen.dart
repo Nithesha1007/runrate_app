@@ -12,7 +12,6 @@ import '../../../../core/theme/app_typography.dart';
 import 'package:runrate/features/roles/ceo/shared/models/approval_model.dart';
 import '../../../../features/notifications/notifications_cubit.dart';
 
-import '../../../../shared/widgets/segmented_toggle.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/reject_request_sheet.dart';
@@ -28,6 +27,12 @@ import '../../../../shared/widgets/toast.dart';
 /// currency-symbol glyph that shows as a black tofu box on this font. This
 /// screen now builds its own `_ApprovalListCard` with plain, correctly
 /// interpolated text and an icon-based currency display instead.
+///
+/// v2 — the shared `SegmentedToggle` for Pending/History is replaced with
+/// an in-file `_SegmentedTabs` control (icons, live counts, gradient
+/// active state) for full design control, and each pending card now has a
+/// "Why this needs your approval" row that opens a detail sheet explaining
+/// the approval rationale, with Approve/Reject available right there too.
 class CeoApprovalsScreen extends StatelessWidget {
   const CeoApprovalsScreen({super.key});
 
@@ -124,11 +129,12 @@ class _CeoApprovalsViewState extends State<_CeoApprovalsView> {
                       const SizedBox(height: AppSpacing.lg),
                       _Staggered(
                         index: 1,
-                        child: SegmentedToggle(
-                          options: const ['Pending', 'History'],
+                        child: _SegmentedTabs(
                           selectedIndex: state.viewIndex,
                           onChanged: (i) =>
                               context.read<CeoApprovalsCubit>().setView(i),
+                          pendingCount: state.pending.length,
+                          historyCount: state.history.length,
                         ),
                       ),
                       if (state.viewIndex == 0) ...[
@@ -363,6 +369,109 @@ String _compact(double value) {
 }
 
 // ---------------------------------------------------------------------------
+// SEGMENTED TABS — Pending / History, with live counts and a gradient
+// active state. Replaces the shared `SegmentedToggle` so the tab bar can
+// match the rest of this screen's visual language (icons, count badges,
+// soft shadow on the active tab) instead of a generic pill toggle.
+// ---------------------------------------------------------------------------
+class _SegmentedTabs extends StatelessWidget {
+  const _SegmentedTabs({
+    required this.selectedIndex,
+    required this.onChanged,
+    required this.pendingCount,
+    required this.historyCount,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onChanged;
+  final int pendingCount;
+  final int historyCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    final tabs = [
+      (label: 'Pending', icon: Icons.pending_actions_rounded, count: pendingCount),
+      (label: 'History', icon: Icons.history_rounded, count: historyCount),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: colors.surfaceElevated,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.border),
+      ),
+      child: Row(
+        children: List.generate(tabs.length, (i) {
+          final tab = tabs[i];
+          final selected = i == selectedIndex;
+          return Expanded(
+            child: _ScaleOnTap(
+              onTap: () => onChanged(i),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                height: 44,
+                decoration: BoxDecoration(
+                  gradient: selected
+                      ? LinearGradient(colors: [colors.primary, colors.secondary])
+                      : null,
+                  borderRadius: BorderRadius.circular(13),
+                  boxShadow: selected
+                      ? [
+                          BoxShadow(
+                            color: colors.primary.withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(tab.icon,
+                        size: 16,
+                        color: selected ? Colors.white : colors.textSecondary),
+                    const SizedBox(width: 6),
+                    Text(
+                      tab.label,
+                      style: AppTypography.body(
+                              selected ? Colors.white : colors.textPrimary)
+                          .copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    if (tab.count > 0) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? Colors.white.withValues(alpha: 0.22)
+                              : colors.border,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          '${tab.count}',
+                          style: AppTypography.caption(
+                                  selected ? Colors.white : colors.textSecondary)
+                              .copyWith(fontWeight: FontWeight.w700, fontSize: 11),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // HERO CARD
 // ---------------------------------------------------------------------------
 class _ApprovalsHeroCard extends StatelessWidget {
@@ -383,79 +492,91 @@ class _ApprovalsHeroCard extends StatelessWidget {
     final approvedCount =
         state.history.where((a) => a.status == ApprovalStatus.approved).length;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(28),
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(28),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              colors.primary,
-              colors.secondary,
-              colors.primary.withValues(alpha: 0.85),
-            ],
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: colors.primary.withValues(alpha: 0.22),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text('Awaiting your sign-off',
-                      style: AppTypography.h3(Colors.white)),
-                ),
-                _StatusPill(
-                  label: pending.isEmpty
-                      ? 'All clear'
-                      : urgentCount > 0
-                          ? '$urgentCount urgent'
-                          : 'Normal',
-                  color: pending.isEmpty
-                      ? colors.success
-                      : urgentCount > 0
-                          ? colors.danger
-                          : colors.info,
-                ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                colors.primary,
+                colors.secondary,
+                colors.primary.withValues(alpha: 0.85),
               ],
             ),
-            const SizedBox(height: AppSpacing.xl),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _AnimatedCounterText(
-                      target: pending.length,
-                      style: AppTypography.display(Colors.white),
-                    ),
-                    const SizedBox(height: 2),
-                    Text('pending items',
-                        style: AppTypography.caption(
-                            Colors.white.withValues(alpha: 0.85))),
-                  ],
-                ),
-                const SizedBox(width: AppSpacing.xl),
-                Expanded(
-                  child: Column(
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text('Awaiting your sign-off',
+                        style: AppTypography.h3(Colors.white)),
+                  ),
+                  _StatusPill(
+                    label: pending.isEmpty
+                        ? 'All clear'
+                        : urgentCount > 0
+                            ? '$urgentCount urgent'
+                            : 'Normal',
+                    color: pending.isEmpty
+                        ? colors.success
+                        : urgentCount > 0
+                            ? colors.danger
+                            : colors.info,
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _StatChip(
-                          label: 'Value', value: _compact(totalValue)),
-                      const SizedBox(height: AppSpacing.sm),
-                      _StatChip(
-                          label: 'Approved this month',
-                          value: '$approvedCount'),
+                      _AnimatedCounterText(
+                        target: pending.length,
+                        style: AppTypography.display(Colors.white),
+                      ),
+                      const SizedBox(height: 2),
+                      Text('pending items',
+                          style: AppTypography.caption(
+                              Colors.white.withValues(alpha: 0.85))),
                     ],
                   ),
-                ),
-              ],
-            ),
-          ],
+                  const SizedBox(width: AppSpacing.xl),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _StatChip(
+                            label: 'Value', value: _compact(totalValue)),
+                        const SizedBox(height: AppSpacing.sm),
+                        _StatChip(
+                            label: 'Approved this month',
+                            value: '$approvedCount'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -628,7 +749,8 @@ class _PriorityFilterRow extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // APPROVAL LIST CARD — replaces the broken shared `ApprovalCard`. Plain,
 // correctly interpolated text, icon-based currency (no tofu glyph), a
-// priority ribbon, and Approve / Reject / Request Info actions.
+// priority ribbon, a "Why this needs your approval" row that opens the
+// detail sheet, and Approve / Reject / Request Info actions.
 // ---------------------------------------------------------------------------
 class _ApprovalListCard extends StatelessWidget {
   const _ApprovalListCard({
@@ -657,13 +779,13 @@ class _ApprovalListCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: colors.surfaceElevated,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: colors.border),
         boxShadow: [
           BoxShadow(
-            color: colors.textPrimary.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: colors.textPrimary.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
@@ -737,6 +859,38 @@ class _ApprovalListCard extends StatelessWidget {
               Text(_formatAmount(approval.amount),
                   style: AppTypography.h3(colors.textPrimary)),
             ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _ScaleOnTap(
+            onTap: () => _showApprovalDetailsSheet(
+              context,
+              approval: approval,
+              priority: priority,
+              onApprove: onApprove,
+              onReject: onReject,
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm, vertical: AppSpacing.xs + 2),
+              decoration: BoxDecoration(
+                color: colors.surface,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline_rounded,
+                      size: 16, color: colors.primary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text('Why this needs your approval',
+                        style: AppTypography.caption(colors.textPrimary)
+                            .copyWith(fontWeight: FontWeight.w600)),
+                  ),
+                  Icon(Icons.chevron_right_rounded,
+                      size: 16, color: colors.textSecondary),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           Row(
@@ -822,6 +976,265 @@ class _ApprovalListCard extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// APPROVAL DETAILS SHEET — "Why this needs your approval". Shows the full
+// request (title, category, priority, requester, amount) plus a rationale
+// list, with Approve / Reject reachable right from the sheet.
+//
+// NOTE: `ApprovalModel` doesn't currently expose a dedicated
+// justification/business-case field, so the rationale bullets below are
+// derived from what the model *does* carry — category, amount, computed
+// priority, and requester — rather than read from a stored "why" field. If
+// the model gains a real justification/description field later, swap
+// `_reasons()` to read from it directly instead of deriving these bullets.
+// ---------------------------------------------------------------------------
+void _showApprovalDetailsSheet(
+  BuildContext context, {
+  required ApprovalModel approval,
+  required ApprovalPriority priority,
+  required VoidCallback onApprove,
+  required VoidCallback onReject,
+}) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _ApprovalDetailsSheet(
+      approval: approval,
+      priority: priority,
+      onApprove: onApprove,
+      onReject: onReject,
+    ),
+  );
+}
+
+class _ApprovalDetailsSheet extends StatelessWidget {
+  const _ApprovalDetailsSheet({
+    required this.approval,
+    required this.priority,
+    required this.onApprove,
+    required this.onReject,
+  });
+
+  final ApprovalModel approval;
+  final ApprovalPriority priority;
+  final VoidCallback onApprove;
+  final VoidCallback onReject;
+
+  bool get _isUrgent =>
+      priority == ApprovalPriority.high || priority == ApprovalPriority.critical;
+
+  List<String> _reasons() {
+    final reasons = <String>[];
+    if (_isUrgent) {
+      reasons.add(
+          'Flagged as urgent priority — needs a faster turnaround than routine requests.');
+    }
+    if (approval.amount >= 50000) {
+      reasons.add(
+          'Amount of ₹${_formatAmount(approval.amount)} is above standard department sign-off limits.');
+    } else {
+      reasons.add(
+          'Amount of ₹${_formatAmount(approval.amount)} falls under strategic spend that routes to the CEO.');
+    }
+    if (approval.category.isNotEmpty) {
+      reasons.add(
+          'Category "${approval.category}" is on the list of spend types that require executive review.');
+    }
+    reasons.add(
+        '${approval.requesterName} does not hold sign-off authority for this amount, so it escalates to you.');
+    return reasons;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    final priorityColor = _isUrgent ? colors.danger : colors.info;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.62,
+      minChildSize: 0.4,
+      maxChildSize: 0.92,
+      expand: false,
+      builder: (context, scrollController) => Container(
+        decoration: BoxDecoration(
+          color: colors.background,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colors.border,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(AppSpacing.xl,
+                    AppSpacing.lg, AppSpacing.xl, AppSpacing.xl),
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: priorityColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                  color: priorityColor, shape: BoxShape.circle),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(_isUrgent ? 'URGENT' : 'NORMAL',
+                                style: AppTypography.caption(priorityColor)
+                                    .copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.4)),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      if (approval.category.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: colors.surfaceElevated,
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: colors.border),
+                          ),
+                          child: Text(approval.category,
+                              style: AppTypography.caption(colors.textSecondary)),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(approval.title, style: AppTypography.h3(colors.textPrimary)),
+                  const SizedBox(height: AppSpacing.sm),
+                  Row(
+                    children: [
+                      Icon(Icons.person_outline_rounded,
+                          size: 16, color: colors.textSecondary),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text('Requested by ${approval.requesterName}',
+                            style: AppTypography.body(colors.textSecondary)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                          colors: [colors.primary, colors.secondary]),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        const Icon(Icons.currency_rupee_rounded,
+                            color: Colors.white, size: 26),
+                        Text(_formatAmount(approval.amount),
+                            style: AppTypography.display(Colors.white)),
+                        const SizedBox(width: 8),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Text('requested',
+                              style: AppTypography.caption(
+                                  Colors.white.withValues(alpha: 0.85))),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  Text('Why this needs your approval',
+                      style: AppTypography.h3(colors.textPrimary)),
+                  const SizedBox(height: AppSpacing.sm),
+                  ..._reasons().map((reason) => Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.only(top: 6),
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                  color: colors.primary, shape: BoxShape.circle),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: Text(reason,
+                                  style: AppTypography.body(colors.textSecondary)),
+                            ),
+                          ],
+                        ),
+                      )),
+                  const SizedBox(height: AppSpacing.xl),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            onReject();
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: colors.danger,
+                            side: BorderSide(
+                                color: colors.danger.withValues(alpha: 0.4)),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: AppSpacing.md),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Reject'),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            onApprove();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: colors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                                vertical: AppSpacing.md),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Approve'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _HistoryTile extends StatelessWidget {
   final ApprovalModel approval;
   final DateTime? decidedAt;
@@ -838,6 +1251,13 @@ class _HistoryTile extends StatelessWidget {
         color: colors.surfaceElevated,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: colors.border),
+        boxShadow: [
+          BoxShadow(
+            color: colors.textPrimary.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [

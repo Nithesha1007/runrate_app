@@ -1,11 +1,12 @@
 import 'dart:convert';
 
+import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Immutable snapshot of the signed-in user's profile. Read this anywhere
 /// in the app via `context.watch<ProfileCubit>().state`.
-class ProfileState {
+class ProfileState extends Equatable {
   const ProfileState({
     this.name = '',
     this.role = '',
@@ -28,9 +29,10 @@ class ProfileState {
   /// empty name on first frame.
   final bool isLoaded;
 
+  String? get avatarPath => avatarUrl;
+
   String get initials {
-    final parts =
-        name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
+    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
     if (parts.isEmpty) return '';
     return parts.take(2).map((p) => p[0]).join().toUpperCase();
   }
@@ -74,6 +76,17 @@ class ProfileState {
         avatarUrl: json['avatarUrl'] as String?,
         isLoaded: true,
       );
+
+  @override
+  List<Object?> get props => [
+        name,
+        role,
+        organization,
+        email,
+        phone,
+        avatarUrl,
+        isLoaded,
+      ];
 }
 
 /// Holds the current user's profile and persists it locally via
@@ -114,8 +127,7 @@ class ProfileCubit extends Cubit<ProfileState> {
     final next = ProfileState(
       name: (json['name'] ?? json['fullName'] ?? '') as String,
       role: (json['role'] ?? json['title'] ?? 'CEO') as String,
-      organization:
-          (json['organization'] ?? json['company'] ?? '') as String,
+      organization: (json['organization'] ?? json['company'] ?? '') as String,
       email: (json['email'] ?? '') as String,
       phone: (json['phone'] ?? json['phoneNumber'] ?? '') as String,
       avatarUrl: json['avatarUrl'] as String?,
@@ -146,6 +158,13 @@ class ProfileCubit extends Cubit<ProfileState> {
     await _persist(next);
   }
 
+  Future<void> updateName(String name) => updateProfile(name: name);
+
+  Future<void> updateAvatar(String? path) => updateProfile(
+        avatarUrl: path,
+        clearAvatar: path == null || path.isEmpty,
+      );
+
   /// Call on logout so the next login starts clean.
   Future<void> clear() async {
     emit(const ProfileState());
@@ -158,4 +177,3 @@ class ProfileCubit extends Cubit<ProfileState> {
     await prefs.setString(_prefsKey, jsonEncode(value.toJson()));
   }
 }
-
