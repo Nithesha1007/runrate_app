@@ -87,7 +87,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   Future<void> _handleGoogleSignIn() async {
     setState(() => _googleLoading = true);
-    // TODO: replace with context.read<AuthCubit>().loginWithGoogle()
+   
     await Future.delayed(const Duration(milliseconds: 900));
     if (!mounted) return;
     setState(() => _googleLoading = false);
@@ -98,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   Future<void> _handleSsoSignIn() async {
     setState(() => _ssoLoading = true);
-    // TODO: replace with context.read<AuthCubit>().loginWithSso()
+   
     await Future.delayed(const Duration(milliseconds: 900));
     if (!mounted) return;
     setState(() => _ssoLoading = false);
@@ -129,7 +129,7 @@ class _LoginScreenState extends State<LoginScreen>
                       end: Alignment(1, 1 - t * 0.4),
                       colors: [
                         theme.colorScheme.surface,
-                        primary.withOpacity(0.06 + 0.05 * t),
+                        primary.withValues(alpha: 0.06 + 0.05 * t),
                         theme.colorScheme.surface,
                       ],
                     ),
@@ -150,14 +150,14 @@ class _LoginScreenState extends State<LoginScreen>
                       top: -80 + 30 * t,
                       right: -60 - 20 * t,
                       child: _glowBlob(
-                          size.width * 0.6, primary.withOpacity(0.18)),
+                          size.width * 0.6, primary.withValues(alpha: 0.18)),
                     ),
                     Positioned(
                       bottom: -100 - 30 * t,
                       left: -80 + 20 * t,
                       child: _glowBlob(
                         size.width * 0.55,
-                        theme.colorScheme.tertiary.withOpacity(0.14),
+                        theme.colorScheme.tertiary.withValues(alpha: 0.14),
                       ),
                     ),
                   ],
@@ -233,15 +233,15 @@ class _LoginScreenState extends State<LoginScreen>
                                   padding: const EdgeInsets.all(AppSpacing.lg),
                                   decoration: BoxDecoration(
                                     color: theme.colorScheme.surface
-                                        .withOpacity(0.55),
+                                        .withValues(alpha: 0.55),
                                     borderRadius: BorderRadius.circular(20),
                                     border: Border.all(
                                       color: theme.colorScheme.outline
-                                          .withOpacity(0.2),
+                                          .withValues(alpha: 0.2),
                                     ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: primary.withOpacity(0.08),
+                                        color: primary.withValues(alpha: 0.08),
                                         blurRadius: 24,
                                         offset: const Offset(0, 12),
                                       ),
@@ -262,7 +262,7 @@ class _LoginScreenState extends State<LoginScreen>
                                               const Icon(Icons.mail_outline),
                                           filled: true,
                                           fillColor: theme.colorScheme.surface
-                                              .withOpacity(0.6),
+                                              .withValues(alpha: 0.6),
                                           border: OutlineInputBorder(
                                             borderRadius:
                                                 BorderRadius.circular(12),
@@ -282,7 +282,7 @@ class _LoginScreenState extends State<LoginScreen>
                                               const Icon(Icons.lock_outline),
                                           filled: true,
                                           fillColor: theme.colorScheme.surface
-                                              .withOpacity(0.6),
+                                              .withValues(alpha: 0.6),
                                           border: OutlineInputBorder(
                                             borderRadius:
                                                 BorderRadius.circular(12),
@@ -361,7 +361,7 @@ class _LoginScreenState extends State<LoginScreen>
                                     Expanded(
                                       child: Divider(
                                         color: theme.colorScheme.outline
-                                            .withOpacity(0.3),
+                                            .withValues(alpha: 0.3),
                                       ),
                                     ),
                                     Padding(
@@ -379,7 +379,7 @@ class _LoginScreenState extends State<LoginScreen>
                                     Expanded(
                                       child: Divider(
                                         color: theme.colorScheme.outline
-                                            .withOpacity(0.3),
+                                            .withValues(alpha: 0.3),
                                       ),
                                     ),
                                   ],
@@ -394,7 +394,7 @@ class _LoginScreenState extends State<LoginScreen>
                                   backgroundColor: Colors.white,
                                   foregroundColor: Colors.black87,
                                   borderColor: theme.colorScheme.outline
-                                      .withOpacity(0.3),
+                                      .withValues(alpha: 0.3),
                                   icon: const _GoogleG(),
                                 ),
                                 const SizedBox(height: AppSpacing.sm),
@@ -404,9 +404,9 @@ class _LoginScreenState extends State<LoginScreen>
                                   label: 'Continue with SSO',
                                   loading: _ssoLoading,
                                   onPressed: _handleSsoSignIn,
-                                  backgroundColor: primary.withOpacity(0.12),
+                                  backgroundColor: primary.withValues(alpha: 0.12),
                                   foregroundColor: primary,
-                                  borderColor: primary.withOpacity(0.35),
+                                  borderColor: primary.withValues(alpha: 0.35),
                                   icon: Icon(Icons.badge_outlined,
                                       color: primary, size: 20),
                                 ),
@@ -446,7 +446,7 @@ class _LoginScreenState extends State<LoginScreen>
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: RadialGradient(
-          colors: [color, color.withOpacity(0)],
+          colors: [color, color.withValues(alpha: 0)],
         ),
       ),
     );
@@ -494,13 +494,13 @@ class _PulsingLogoState extends State<_PulsingLogo>
             shape: BoxShape.circle,
             gradient: RadialGradient(
               colors: [
-                widget.color.withOpacity(0.35 + 0.15 * t),
-                widget.color.withOpacity(0.05),
+                widget.color.withValues(alpha: 0.35 + 0.15 * t),
+                widget.color.withValues(alpha: 0.05),
               ],
             ),
             boxShadow: [
               BoxShadow(
-                color: widget.color.withOpacity(0.25 + 0.15 * t),
+                color: widget.color.withValues(alpha: 0.25 + 0.15 * t),
                 blurRadius: 20 + 10 * t,
                 spreadRadius: 1 + 2 * t,
               ),

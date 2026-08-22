@@ -85,32 +85,32 @@ class _EngineeringManagerProfileEditScreenState extends State<EngineeringManager
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.xl),
             children: [
-              _FieldLabel('Full name'),
+            const  _FieldLabel('Full name'),
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(hintText: 'Enter your full name'),
                 validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
               ),
               const SizedBox(height: AppSpacing.lg),
-              _FieldLabel('Team'),
+          const    _FieldLabel('Team'),
               TextFormField(
                 controller: _teamController,
                 decoration: const InputDecoration(hintText: 'e.g. Platform Engineering'),
                 validator: (v) => (v == null || v.trim().isEmpty) ? 'Team is required' : null,
               ),
               const SizedBox(height: AppSpacing.lg),
-              _FieldLabel('Email'),
+           const   _FieldLabel('Email'),
               TextFormField(
                 controller: _emailController,
                 enabled: _emailEditable,
                 keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   hintText: 'name@company.com',
                   helperText: _emailEditable ? null : 'Contact an admin to change your login email.',
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              _FieldLabel('Phone'),
+              const _FieldLabel('Phone'),
               TextFormField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,

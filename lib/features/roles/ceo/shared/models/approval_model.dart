@@ -12,29 +12,20 @@ class ApprovalModel extends shared.ApprovalModel {
   String? moreInfoRequest;
 
   ApprovalModel({
-    required String id,
-    required String requesterName,
+    required super.id,
+    required super.requesterName,
     this.department = 'Operations',
-    required String title,
-    required double amount,
-    required String category,
-    required DateTime requestedAt,
+    required super.title,
+    required super.amount,
+    required super.category,
+    required super.requestedAt,
     this.businessJustification =
         'Enables the team to maintain delivery velocity and supports current roadmap commitments.',
     this.expectedRoi = '3.1x within 12 months',
     this.cfoRecommendation = 'Approve — within quarterly discretionary budget.',
     this.priority = ApprovalPriority.medium,
-    shared.ApprovalStatus status = shared.ApprovalStatus.pending,
-    String? declineReason,
+    super.status,
+    super.declineReason,
     this.moreInfoRequest,
-  }) : super(
-          id: id,
-          requesterName: requesterName,
-          title: title,
-          amount: amount,
-          category: category,
-          requestedAt: requestedAt,
-          status: status,
-          declineReason: declineReason,
-        );
+  });
 }

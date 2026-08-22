@@ -8,7 +8,7 @@ import 'package:runrate/core/theme/app_typography.dart';
 /// Reports, Budget & Forecast, AI Activity & Usage, Policies & Approval
 /// Rules).
 ///
-/// TODO: if your project already has `SkeletonLoader`, `EmptyState`, or
+
 /// a currency-formatting helper under a different name/API, swap the
 /// ones below for those instead — these exist so every screen compiles
 /// and looks consistent even if your exact shared-widget names differ

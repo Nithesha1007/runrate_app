@@ -33,7 +33,7 @@ class CeoAiCubit extends Cubit<CeoAiState> {
     emit(state.copyWith(briefing: briefing, briefingLoading: false));
   }
 
-  /// TODO: replace with a real "list conversations" endpoint. Mocked here
+  
   /// so the sidebar has something to render on first load. Live sessions
   /// created via sendMessage() get prepended on top of these at runtime.
   void _loadSessions() {

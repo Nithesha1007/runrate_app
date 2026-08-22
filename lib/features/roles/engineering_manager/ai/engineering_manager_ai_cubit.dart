@@ -55,7 +55,7 @@ class EngineeringManagerAiCubit extends Cubit<EngineeringManagerAiState> {
     ));
   }
 
-  /// TODO: replace with a real "list conversations" endpoint. Mocked here
+ 
   /// so the sidebar has something to render on first load.
   void _loadSessions() {
     final now = DateTime.now();
@@ -250,8 +250,8 @@ class EngineeringManagerAiCubit extends Cubit<EngineeringManagerAiState> {
       return '$_teamName spent \$${compact(_totalSpend)} on AI tools this month, ${((_totalSpend / _budget) * 100).toInt()}% of your \$${compact(_budget)} budget.';
     }
     if (q.contains('on track') && q.contains('budget')) {
-      final pct = _totalSpend / _budget;
-      final status = pct >= 0.95 ? 'Critical' : (pct >= 0.8 ? 'Warning' : 'Healthy');
+      const pct = _totalSpend / _budget;
+      const status = pct >= 0.95 ? 'Critical' : (pct >= 0.8 ? 'Warning' : 'Healthy');
       return 'Budget status: $status. You\'ve used ${(pct * 100).toInt()}% of your \$${compact(_budget)} monthly budget.';
     }
     if (q.contains('costing us the most') || (q.contains('tool') && q.contains('costing'))) {
@@ -259,7 +259,7 @@ class EngineeringManagerAiCubit extends Cubit<EngineeringManagerAiState> {
       return '${top.first.name} is your biggest AI cost at \$${compact(top.first.spend)}/mo.';
     }
     if (q.contains('why') && q.contains('increase')) {
-      final delta = _totalSpend - _lastMonthSpend;
+      const delta = _totalSpend - _lastMonthSpend;
       return 'Spend rose \$${compact(delta)} versus last month, mostly from added Claude seats as adoption grew.';
     }
     if (q.contains('save') && q.contains('unused')) {
@@ -268,7 +268,7 @@ class EngineeringManagerAiCubit extends Cubit<EngineeringManagerAiState> {
       return 'Reclaiming inactive seats on underused tools could save roughly \$${compact(savings)}/mo.';
     }
     if (q.contains('next month') || (q.contains('spend') && q.contains('look'))) {
-      final forecast = _totalSpend * 1.05;
+      const forecast = _totalSpend * 1.05;
       return 'At current growth, forecasted spend next month is around \$${compact(forecast)} — about 5% above this month.';
     }
 
@@ -321,7 +321,7 @@ class EngineeringManagerAiCubit extends Cubit<EngineeringManagerAiState> {
       return 'No duplicate subscriptions detected across your team right now.';
     }
     if (q.contains('overspending')) {
-      final pct = _totalSpend / _budget;
+      const pct = _totalSpend / _budget;
       return pct > 0.9
           ? '$_teamName is close to its budget ceiling at ${(pct * 100).toInt()}% used — worth a check before month end.'
           : '$_teamName isn\'t overspending — currently at ${(pct * 100).toInt()}% of budget.';

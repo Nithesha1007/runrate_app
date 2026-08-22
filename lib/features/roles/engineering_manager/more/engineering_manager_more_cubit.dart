@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// All tappable destinations on the Engineering Manager · More screen.
 ///
-/// TODO: confirm/replace with your project's real named routes when wiring
+
 /// _handleTap in the screen file.
 enum MoreMenuAction {
   editProfile,
@@ -175,7 +175,7 @@ class EngineeringManagerMoreCubit extends Cubit<EngineeringManagerMoreState> {
       initials: 'PN',
     );
 
-    // TODO: flip canSwitch to true only if multi-workspace already exists
+  
     // in your app — do not fake this per spec §2.
     const workspace = WorkspaceInfo(
       companyName: 'Runrate Technologies',
@@ -248,19 +248,19 @@ class EngineeringManagerMoreCubit extends Cubit<EngineeringManagerMoreState> {
             icon: Icons.verified_user_outlined,
             title: 'Two-Factor Authentication',
             action: MoreMenuAction.twoFactorAuth,
-            isComingSoon: true, // TODO: flip once backend supports 2FA
+            isComingSoon: true, 
           ),
           MoreRow(
             icon: Icons.fingerprint,
             title: 'Biometric Lock',
             action: MoreMenuAction.biometricLock,
-            isComingSoon: true, // TODO: flip once device-level lock exists
+            isComingSoon: true, 
           ),
           MoreRow(
             icon: Icons.devices_outlined,
             title: 'Active Sessions',
             action: MoreMenuAction.activeSessions,
-            isComingSoon: true, // TODO: flip once session listing exists
+            isComingSoon: true, 
           ),
           MoreRow(
             icon: Icons.privacy_tip_outlined,
@@ -331,7 +331,7 @@ class EngineeringManagerMoreCubit extends Cubit<EngineeringManagerMoreState> {
       workspace: workspace,
       permissions: permissions,
       sections: sections,
-      supportsDeleteAccount: false, // TODO: flip once account deletion exists
+      supportsDeleteAccount: false, 
     );
   }
 }

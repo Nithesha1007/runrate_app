@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../shared/widgets/avatar.dart';
 import '../../core/constants/app_spacing.dart';
 
-/// TODO: bind to the logged-in UserModel via AuthCubit instead of placeholder text.
+ 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 

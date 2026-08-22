@@ -34,9 +34,9 @@ class SimpleBarChart extends StatelessWidget {
                     duration: const Duration(milliseconds: 500),
                     curve: Curves.easeOutCubic,
                     height: (height - 32) * ratio,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: AppColors.primary,
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(6)),
                     ),
                   ),
                   const SizedBox(height: 6),

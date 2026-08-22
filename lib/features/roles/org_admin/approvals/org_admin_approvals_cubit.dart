@@ -73,7 +73,7 @@ class OrgAdminApprovalsCubit extends Cubit<OrgAdminApprovalsState> {
     emit(state.copyWith(requests: updated, clearProcessingId: true));
   }
 
-  /// [message] is the reason shared with the requester. TODO: send it to
+  /// [message] is the reason shared with the requester. 
   /// the notifications/repository layer once the backend is available.
   Future<void> reject(String id, String message) async {
     emit(state.copyWith(processingId: id));

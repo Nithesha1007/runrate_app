@@ -129,7 +129,7 @@ class _EngineeringManagerMoreScreenState
     final picked = await picker.pickImage(source: source, imageQuality: 85);
     if (picked == null || !context.mounted) return;
 
-    // TODO: upload `picked.path` to your media/storage endpoint and pass
+   
     // the resulting remote URL here instead of the local file path.
     await context.read<ProfileCubit>().updateProfile(avatarUrl: picked.path);
   }
@@ -161,7 +161,7 @@ class _EngineeringManagerMoreScreenState
     );
 
     if (confirmed == true && context.mounted) {
-      // TODO: also revoke/clear auth tokens via your real auth
+      
       // repository before navigating.
       await context.read<ProfileCubit>().clear();
       if (context.mounted) {

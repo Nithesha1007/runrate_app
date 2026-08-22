@@ -171,7 +171,7 @@ class _ApprovalCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 16,
-                backgroundColor: context.primaryColor.withOpacity(0.12),
+                backgroundColor: context.primaryColor.withValues(alpha: 0.12),
                 child: Text(
                   request.requesterName.isNotEmpty
                       ? request.requesterName[0].toUpperCase()

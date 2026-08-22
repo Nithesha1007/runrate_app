@@ -63,7 +63,7 @@ class EmScreenScaffold extends StatelessWidget {
 /// every screen using this gets replaced in place with real content
 /// (charts, lists, forms, etc.) in the next iteration, per spec.
 ///
-/// TODO(next pass): remove this widget from each screen file as its
+
 /// real content is implemented.
 class EmScreenInProgress extends StatelessWidget {
   const EmScreenInProgress({

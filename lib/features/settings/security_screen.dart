@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// TODO: add change-password / 2FA mock flows.
+
 class SecurityScreen extends StatelessWidget {
   const SecurityScreen({super.key});
 

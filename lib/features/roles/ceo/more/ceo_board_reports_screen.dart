@@ -26,28 +26,28 @@ class BoardReport {
 }
 
 final _mockBoardReports = <BoardReport>[
-  BoardReport(
+ const BoardReport(
     period: 'Q3 2026',
     summary:
         'Revenue up 14% QoQ with disciplined spend growth across all '
         'departments; AI Copilot adoption crossed 60% of active teams.',
     status: BoardReportStatus.draft,
   ),
-  BoardReport(
+ const BoardReport(
     period: 'Q2 2026',
     summary:
         'Operating margin held steady despite headcount growth in '
         'Engineering; approvals cycle time dropped by two days on average.',
     status: BoardReportStatus.final_,
   ),
-  BoardReport(
+ const BoardReport(
     period: 'Q1 2026',
     summary:
         'Kicked off the year with a renewed budget framework across '
         'departments and completed the SOC 2 compliance audit on schedule.',
     status: BoardReportStatus.final_,
   ),
-  BoardReport(
+ const BoardReport(
     period: 'Q4 2025',
     summary:
         'Closed the fiscal year ahead of target with strong retention '

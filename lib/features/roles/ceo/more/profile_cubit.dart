@@ -124,7 +124,7 @@ class ProfileCubit extends Cubit<ProfileState> {
   /// Call with the raw login/auth response. Adjust the key lookups below
   /// if your API uses different field names.
   Future<void> loadFromAuthResponse(Map<String, dynamic> json) async {
-    final next = ProfileState(
+    final authProfile = ProfileState(
       name: (json['name'] ?? json['fullName'] ?? '') as String,
       role: (json['role'] ?? json['title'] ?? 'CEO') as String,
       organization: (json['organization'] ?? json['company'] ?? '') as String,
@@ -133,6 +133,14 @@ class ProfileCubit extends Cubit<ProfileState> {
       avatarUrl: json['avatarUrl'] as String?,
       isLoaded: true,
     );
+
+    final next = state.isLoaded
+        ? state.copyWith(
+            role: authProfile.role,
+            email: authProfile.email,
+            isLoaded: true,
+          )
+        : authProfile;
     emit(next);
     await _persist(next);
   }

@@ -8,7 +8,7 @@ import 'package:runrate/shared/widgets/settings_row.dart';
 
 
 /// Security Settings — session/device visibility and sign-out controls.
-/// Session list is intentionally left as a TODO fetch since it depends on
+/// Session list is intentionaTODO fetch since it depends onlly left as a 
 /// your real auth/session backend.
 class EngineeringManagerSecuritySettingsScreen extends StatefulWidget {
   const EngineeringManagerSecuritySettingsScreen({super.key});
@@ -20,7 +20,7 @@ class EngineeringManagerSecuritySettingsScreen extends StatefulWidget {
 
 class _EngineeringManagerSecuritySettingsScreenState
     extends State<EngineeringManagerSecuritySettingsScreen> {
-  // TODO: replace with your real login-alerts preference source.
+  
   bool _loginAlerts = true;
 
   @override
@@ -65,7 +65,7 @@ class _EngineeringManagerSecuritySettingsScreenState
                   iconColor: colors.danger,
                   title: 'Sign out of all other devices',
                   onTap: () {
-                    // TODO: wire to your real "revoke other sessions" endpoint.
+                 
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Signed out of all other devices.')),
                     );

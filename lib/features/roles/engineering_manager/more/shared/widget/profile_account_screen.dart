@@ -37,9 +37,9 @@ class _ProfileAccountScreenState extends State<ProfileAccountScreen>
   late final TextEditingController _departmentController;
   late final TextEditingController _teamController;
 
-  // TODO: source from ProfileCubit once reporting-manager is exposed
+ 
   // there; treated as read-only org data for now.
-  String _reportingManager = 'Not assigned';
+  final String _reportingManager = 'Not assigned';
 
   bool _dirty = false;
   bool _saving = false;
@@ -118,7 +118,7 @@ class _ProfileAccountScreenState extends State<ProfileAccountScreen>
     final picked = await picker.pickImage(source: source, imageQuality: 85);
     if (picked == null || !mounted) return;
 
-    // TODO: upload `picked.path` to your media/storage endpoint and pass
+   
     // the resulting remote URL here instead of the local file path.
     await context.read<ProfileCubit>().updateProfile(avatarUrl: picked.path);
   }
@@ -131,7 +131,7 @@ class _ProfileAccountScreenState extends State<ProfileAccountScreen>
             organization: _teamController.text.trim(),
             phone: _phoneController.text.trim(),
           );
-      // TODO: persist department / reporting manager once your backend
+    
       // supports them on this cubit or a dedicated account-details call.
       if (!mounted) return;
       setState(() {
@@ -604,7 +604,7 @@ class _ReadOnlyOrgCard extends StatelessWidget {
             value: reportingManager,
           ),
           const SizedBox(height: AppSpacing.sm),
-          _ReadOnlyRow(
+       const   _ReadOnlyRow(
             icon: Icons.apartment_outlined,
             label: 'Role',
             value: 'Engineering Manager',

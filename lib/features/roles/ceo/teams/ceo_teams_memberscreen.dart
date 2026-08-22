@@ -15,8 +15,12 @@ enum _MemberFilter { all, highSpend, mostTools }
 
 /// CEO · Teams → Department drill-down. Shows the roster for one
 /// department, reached by tapping a department card on CeoTeamsScreen.
-/// Redesigned to match the app's premium gradient-hero + themed-search +
-/// staggered-list style used across Home/Teams/Approvals.
+///
+/// v2: hero card now surfaces Budget, Remaining, and a live
+/// budget-used progress bar alongside the existing member-count and
+/// spend figures — same gradient card, same layout family, just more
+/// CEO-relevant signal at a glance. No structural changes to search,
+/// filters, or the member list below.
 class CeoTeamMembersScreen extends StatefulWidget {
   final DepartmentSummary department;
   const CeoTeamMembersScreen({super.key, required this.department});
@@ -197,7 +201,7 @@ class _CeoTeamMembersScreenState extends State<CeoTeamMembersScreen> {
 }
 
 // ---------------------------------------------------------------------------
-// Screen header — matches Teams/Approvals header pattern.
+// Screen header — unchanged.
 // ---------------------------------------------------------------------------
 class _ScreenHeader extends StatelessWidget {
   const _ScreenHeader({required this.colors, required this.title});
@@ -295,8 +299,7 @@ class _ScaleOnTapState extends State<_ScaleOnTap> {
 }
 
 // ---------------------------------------------------------------------------
-// THEMED SEARCH FIELD — same treatment as the Teams list screen: animated
-// focus border/icon in the app's accent color instead of a flat black one.
+// THEMED SEARCH FIELD — unchanged.
 // ---------------------------------------------------------------------------
 class _ThemedSearchField extends StatefulWidget {
   const _ThemedSearchField({required this.hint, required this.onChanged});
@@ -394,7 +397,7 @@ class _ThemedSearchFieldState extends State<_ThemedSearchField> {
 }
 
 // ---------------------------------------------------------------------------
-// MEMBER FILTER ROW — All / High spend / Most tools.
+// MEMBER FILTER ROW — unchanged.
 // ---------------------------------------------------------------------------
 class _MemberFilterRow extends StatelessWidget {
   const _MemberFilterRow({required this.selected, required this.onSelect});
@@ -453,8 +456,11 @@ String _compactCurrency(double value) {
 }
 
 // ---------------------------------------------------------------------------
-// DEPARTMENT HERO — gradient card summarizing the department: lead,
-// members, spend, health status.
+// DEPARTMENT HERO — v2: same gradient card, same "Led by / status /
+// members / spend" top section, now extended with a Budget / Remaining
+// row and a live progress bar beneath a subtle divider. The bar and
+// figures shift from white → amber → coral as budget usage climbs,
+// so a CEO reads risk without opening the department details screen.
 // ---------------------------------------------------------------------------
 class _DepartmentHeroCard extends StatelessWidget {
   const _DepartmentHeroCard({required this.department});
@@ -483,6 +489,16 @@ class _DepartmentHeroCard extends StatelessWidget {
     final team = department.team;
     final statusColor = _healthColor(colors, department.health);
 
+    final budgetPct = (team.budgetUsedPercent / 100).clamp(0.0, 1.0);
+    final remaining = team.monthlyBudget - team.spend;
+    final isOver = team.budgetUsedPercent >= 100;
+    final isNear = team.budgetUsedPercent >= 90;
+    final barColor = isOver
+        ? const Color(0xFFFF7A7A)
+        : isNear
+            ? const Color(0xFFFFD166)
+            : Colors.white;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(28),
       child: Container(
@@ -498,6 +514,14 @@ class _DepartmentHeroCard extends StatelessWidget {
               colors.primary.withValues(alpha: 0.85),
             ],
           ),
+          boxShadow: [
+            BoxShadow(
+              color: colors.primary.withValues(alpha: 0.32),
+              blurRadius: 26,
+              spreadRadius: -6,
+              offset: const Offset(0, 14),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -555,7 +579,7 @@ class _DepartmentHeroCard extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.currency_rupee_rounded,
+                        const Icon(Icons.currency_rupee_rounded,
                             color: Colors.white, size: 18),
                         Text(_compactCurrency(team.spend),
                             style: AppTypography.h2(Colors.white)),
@@ -566,6 +590,118 @@ class _DepartmentHeroCard extends StatelessWidget {
                             Colors.white.withValues(alpha: 0.85))),
                   ],
                 ),
+              ],
+            ),
+
+            // --- Budget section (new) ---------------------------------
+            const SizedBox(height: AppSpacing.lg),
+            Container(
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.18),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Budget',
+                          style: AppTypography.caption(
+                              Colors.white.withValues(alpha: 0.75))),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          const Icon(Icons.currency_rupee_rounded,
+                              color: Colors.white, size: 15),
+                          Text(_compactCurrency(team.monthlyBudget),
+                              style: AppTypography.h3(Colors.white)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text('Remaining',
+                          style: AppTypography.caption(
+                              Colors.white.withValues(alpha: 0.75))),
+                      const SizedBox(height: 3),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.currency_rupee_rounded,
+                              color: Colors.white, size: 15),
+                          Text(
+                            _compactCurrency(remaining < 0 ? 0 : remaining),
+                            style: AppTypography.h3(Colors.white),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: SizedBox(
+                height: 6,
+                child: Stack(
+                  children: [
+                    Container(color: Colors.white.withValues(alpha: 0.18)),
+                    TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0, end: budgetPct),
+                      duration: const Duration(milliseconds: 900),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, value, _) => FractionallySizedBox(
+                        widthFactor: value,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: barColor,
+                            boxShadow: [
+                              BoxShadow(
+                                color: barColor.withValues(alpha: 0.55),
+                                blurRadius: 6,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Text(
+                  '${team.budgetUsedPercent.toStringAsFixed(0)}% of budget used',
+                  style: AppTypography.caption(
+                      Colors.white.withValues(alpha: 0.8)),
+                ),
+                const Spacer(),
+                if (isOver || isNear)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: barColor.withValues(alpha: 0.22),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                          color: barColor.withValues(alpha: 0.5)),
+                    ),
+                    child: Text(
+                      isOver ? 'Over budget' : 'Near limit',
+                      style: AppTypography.caption(Colors.white)
+                          .copyWith(fontWeight: FontWeight.w700, fontSize: 10),
+                    ),
+                  ),
               ],
             ),
           ],
@@ -596,8 +732,8 @@ class _AnimatedCounterText extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// MEMBER CARD — colored initials avatar, role, spend (icon + digits,
-// never a raw currency-symbol string), tools-used chip.
+// MEMBER CARD — unchanged layout, with a light shadow added for depth
+// consistency with the enhanced hero card above it.
 // ---------------------------------------------------------------------------
 const List<Color> _kAvatarPalette = [
   Color(0xFF6C5CE7),
@@ -681,93 +817,98 @@ class _MemberCard extends StatelessWidget {
     return _ScaleOnTap(
       onTap: () => _showDetails(context),
       child: Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colors.surfaceElevated,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
-      child: Row(
-        children: [
-          _UsageRing(
-            ratio: usageRatio,
-            color: colors.primary,
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [color, color.withValues(alpha: 0.7)],
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: colors.surfaceElevated,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            _UsageRing(
+              ratio: usageRatio,
+              color: colors.primary,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [color, color.withValues(alpha: 0.7)],
+                  ),
                 ),
+                alignment: Alignment.center,
+                child: Text(initials,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13)),
               ),
-              alignment: Alignment.center,
-              child: Text(initials,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13)),
             ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(member.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.body(colors.textPrimary)
-                        .copyWith(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 2),
-                Text(member.role,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.caption(colors.textSecondary)),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.currency_rupee_rounded,
-                      size: 13, color: colors.textPrimary),
-                  Text(_formatAmount(member.aiSpend),
+                  Text(member.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: AppTypography.body(colors.textPrimary)
-                          .copyWith(fontWeight: FontWeight.w700)),
+                          .copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(member.role,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.caption(colors.textSecondary)),
                 ],
               ),
-              const SizedBox(height: 2),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm, vertical: 2),
-                decoration: BoxDecoration(
-                  color: colors.primaryLight,
-                  borderRadius: BorderRadius.circular(999),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.currency_rupee_rounded,
+                        size: 13, color: colors.textPrimary),
+                    Text(_formatAmount(member.aiSpend),
+                        style: AppTypography.body(colors.textPrimary)
+                            .copyWith(fontWeight: FontWeight.w700)),
+                  ],
                 ),
-                child: Text('${member.toolsUsed} tools',
-                    style: AppTypography.caption(colors.primary)
-                        .copyWith(fontWeight: FontWeight.w600)),
-              ),
-            ],
-          ),
-        ],
-      ),
+                const SizedBox(height: 2),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: colors.primaryLight,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text('${member.toolsUsed} tools',
+                      style: AppTypography.caption(colors.primary)
+                          .copyWith(fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// USAGE RING — small ring around the avatar showing this member's tool
-// usage relative to the rest of the roster (reuses the hero card's
-// circular-progress ring pattern at a smaller size).
+// USAGE RING — unchanged.
 // ---------------------------------------------------------------------------
 class _UsageRing extends StatelessWidget {
   const _UsageRing(

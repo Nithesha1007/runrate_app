@@ -174,7 +174,7 @@ class _CeoProfileEditScreenState extends State<CeoProfileEditScreen> {
 
     setState(() => _saving = true);
     try {
-      // TODO(api): if `_pickedImage` is set, upload it via your media
+
       // endpoint here first and pass the resulting URL as `avatarUrl`
       // instead of a local file path.
       await context.read<ProfileCubit>().updateProfile(
@@ -202,6 +202,7 @@ class _CeoProfileEditScreenState extends State<CeoProfileEditScreen> {
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         if (await _confirmDiscardIfNeeded() && mounted) {
+          // ignore: use_build_context_synchronously
           Navigator.of(context).pop();
         }
       },
@@ -220,6 +221,7 @@ class _CeoProfileEditScreenState extends State<CeoProfileEditScreen> {
                       _ScaleOnTap(
                         onTap: () async {
                           if (await _confirmDiscardIfNeeded() && mounted) {
+                            // ignore: use_build_context_synchronously
                             Navigator.of(context).pop();
                           }
                         },

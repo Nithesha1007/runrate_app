@@ -456,7 +456,7 @@ class CeoHomeCubit extends Cubit<CeoHomeState> {
         trendValue: 4,
         icon: Icons.trending_up_rounded,
       ),
-      CeoKpiCardData(
+    const  CeoKpiCardData(
         label: 'Unused Licenses',
         value: '$unusedLicenseCount',
         subtitle: 'Inactive 30+ days',

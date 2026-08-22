@@ -136,9 +136,9 @@ class _CeoHomeViewState extends State<_CeoHomeView>
                             ),
                           ),
                           const SizedBox(height: AppSpacing.xl),
-                          _Staggered(
+                      const    _Staggered(
                             index: 2,
-                            child: const _SectionHeader(
+                            child:  _SectionHeader(
                                 title: 'Key Executive Metrics'),
                           ),
                           const SizedBox(height: AppSpacing.md),
@@ -323,10 +323,10 @@ class _LoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.xl),
+    return const Padding(
+      padding: EdgeInsets.all(AppSpacing.xl),
       child: Column(
-        children: const [
+        children: [
           _ShimmerCard(height: 60),
           SizedBox(height: AppSpacing.md),
           _ShimmerCard(height: 220),
@@ -1104,11 +1104,17 @@ class _SectionHeader extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // QUICK ACTIONS
 //
-// v2 — subtitles ("Strategic copilot", "Full spend rollup", etc.) removed:
-// they were pure decoration that didn't add information beyond the title
-// and were costing extra vertical space on a screen that already has a lot
-// of content. Cards are now compact single-row tiles (icon + title) at a
-// wider aspect ratio so the whole grid takes noticeably less height.
+// v3 — "Ask AI" tile removed from this grid entirely (it's a permanent
+// bottom-nav tab now, so surfacing it again here was a duplicate entry
+// point). With only 3 tiles left (Company Report, Budget Forecast, Compare
+// Departments), the plain 2x2 GridView layout is replaced with an
+// asymmetric "advanced" layout: the first/primary action renders as a wide
+// featured card with a soft gradient wash, a glowing icon badge, a one-line
+// description, and a trailing arrow chip; the remaining two render as a
+// tighter two-up row below it with the same gradient-badge treatment at a
+// smaller scale. This reads as a deliberately designed action shelf rather
+// than a generic icon grid, while still using the existing color/spacing/
+// typography tokens so it drops into dark mode correctly.
 // ---------------------------------------------------------------------------
 class _QuickActionsGrid extends StatelessWidget {
   const _QuickActionsGrid({required this.items, required this.onTap});
@@ -1117,68 +1123,226 @@ class _QuickActionsGrid extends StatelessWidget {
   final ValueChanged<CeoQuickActionItem> onTap;
 
   static const _accents = [
-    [Color(0xFF6C5CE7), Color(0xFF8E7CFF)],
     [Color(0xFF2F80ED), Color(0xFF56CCF2)],
     [Color(0xFF11998E), Color(0xFF38EF7D)],
     [Color(0xFFF2994A), Color(0xFFF2C94C)],
   ];
 
+  static const _descriptions = {
+    'company_report': 'Full AI spend rollup, ready to share',
+    'budget_forecast': 'Project next quarter\'s AI spend',
+    'compare_departments': 'See who\'s over or under budget',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    AppColors.of(context);
+    // Ask AI already lives permanently in the bottom nav — don't duplicate
+    // it here.
+    final visible =
+        items.where((i) => i.routeTag != 'ask_ai').take(3).toList();
+
+    if (visible.isEmpty) return const SizedBox.shrink();
+
+    final primary = visible.first;
+    final rest = visible.skip(1).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _FeaturedActionCard(
+          item: primary,
+          accent: _accents[0],
+          description: _descriptions[primary.routeTag] ?? '',
+          onTap: () => onTap(primary),
+        ),
+        if (rest.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: List.generate(rest.length, (i) {
+              final item = rest[i];
+              final accent = _accents[(i + 1) % _accents.length];
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                      right: i == rest.length - 1 ? 0 : AppSpacing.md),
+                  child: _CompactActionCard(
+                    item: item,
+                    accent: accent,
+                    onTap: () => onTap(item),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Wide featured tile for the primary quick action — gradient wash
+/// background, glowing icon badge, description line, trailing arrow chip.
+class _FeaturedActionCard extends StatelessWidget {
+  const _FeaturedActionCard({
+    required this.item,
+    required this.accent,
+    required this.description,
+    required this.onTap,
+  });
+
+  final CeoQuickActionItem item;
+  final List<Color> accent;
+  final String description;
+  final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final crossAxisCount = constraints.maxWidth > 700 ? 4 : 2;
-        final visible = items.take(4).toList();
-        return GridView.count(
-          crossAxisCount: crossAxisCount,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: AppSpacing.md,
-          mainAxisSpacing: AppSpacing.md,
-          childAspectRatio: 2.3,
-          children: List.generate(visible.length, (i) {
-            final item = visible[i];
-            final accent = _accents[i % _accents.length];
-            return _ScaleOnTap(
-              onTap: () => onTap(item),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-                decoration: BoxDecoration(
-                  color: colors.surfaceElevated,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: colors.border),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(11),
-                        gradient: LinearGradient(colors: accent),
-                      ),
-                      child: Icon(item.icon, color: Colors.white, size: 17),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        item.title,
-                        style: AppTypography.body(colors.textPrimary)
-                            .copyWith(fontWeight: FontWeight.w600),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        softWrap: true,
-                      ),
-                    ),
-                  ],
-                ),
+    return _ScaleOnTap(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              accent[0].withValues(alpha: 0.12),
+              accent[1].withValues(alpha: 0.06),
+              colors.surfaceElevated,
+            ],
+          ),
+          border: Border.all(color: accent[0].withValues(alpha: 0.22)),
+          boxShadow: [
+            BoxShadow(
+              color: accent[0].withValues(alpha: 0.16),
+              blurRadius: 22,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(colors: accent),
+                boxShadow: [
+                  BoxShadow(
+                    color: accent[0].withValues(alpha: 0.45),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
-            );
-          }),
-        );
-      },
+              child: Icon(item.icon, color: Colors.white, size: 24),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item.title,
+                      style: AppTypography.body(colors.textPrimary)
+                          .copyWith(fontWeight: FontWeight.w700, fontSize: 16),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  if (description.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(description,
+                        style: AppTypography.caption(colors.textSecondary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: accent[0].withValues(alpha: 0.14),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.arrow_forward_rounded,
+                  color: accent[0], size: 17),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Smaller tile used for the two secondary quick actions in the row below
+/// the featured card.
+class _CompactActionCard extends StatelessWidget {
+  const _CompactActionCard({
+    required this.item,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final CeoQuickActionItem item;
+  final List<Color> accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    return _ScaleOnTap(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md, vertical: AppSpacing.md),
+        decoration: BoxDecoration(
+          color: colors.surfaceElevated,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: colors.border),
+          boxShadow: [
+            BoxShadow(
+              color: accent[0].withValues(alpha: 0.08),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                gradient: LinearGradient(colors: accent),
+                boxShadow: [
+                  BoxShadow(
+                    color: accent[0].withValues(alpha: 0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Icon(item.icon, color: Colors.white, size: 18),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              item.title,
+              style: AppTypography.body(colors.textPrimary)
+                  .copyWith(fontWeight: FontWeight.w600, fontSize: 13.5),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              softWrap: true,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1330,6 +1494,23 @@ class _KpiGrid extends StatelessWidget {
 // the same condensed card used elsewhere: name + vendor/category up top,
 // spend + level pill on the right, a stat row (Users / Adoption /
 // Cost per user), and a gradient progress bar along the bottom.
+//
+// v4 — logo source switched from logo.clearbit.com (which returns blank or
+// wrong-shaped results for several AI-native brands, since Clearbit only
+// indexes a company's marketing-site favicon/wordmark, not a curated
+// square app icon) to Wikimedia Commons' official brand SVGs, served
+// through Special:FilePath so Image.network gets back a rendered raster
+// (Commons redirects that URL to a PNG thumbnail — Flutter's Image.network
+// can't decode raw SVG without an extra package, so this avoids adding
+// flutter_svg as a dependency). Each source below is the real, current
+// icon-only brand mark for that product, not a wordmark or third-party
+// redraw:
+//   • ChatGPT → File:ChatGPT logo.svg (OpenAI's black speech-bubble mark)
+//   • Claude  → File:Claude AI symbol.svg (Anthropic's icon-only mark, CC0)
+//   • Gemini  → File:Google Gemini icon 2025.svg (current sparkle mark)
+//   • Copilot → GitHub Copilot has no square standalone icon on Commons
+//     (only thin wordmark strips), so this falls back to GitHub's own
+//     Invertocat mark, since Copilot ships as part of the GitHub brand.
 // ---------------------------------------------------------------------------
 class _AiUsageAdoptionSection extends StatelessWidget {
   const _AiUsageAdoptionSection({
@@ -1398,7 +1579,8 @@ _AiToolBrand _brandForAiTool(String name) {
   final n = name.toLowerCase();
   if (n.contains('chatgpt') || n.contains('gpt')) {
     return const _AiToolBrand(
-      logoUrl: 'https://logo.clearbit.com/openai.com',
+      logoUrl:
+          'https://commons.wikimedia.org/wiki/Special:FilePath/ChatGPT%20logo.svg?width=200',
       vendor: 'OpenAI',
       category: 'Generative AI',
       fallbackIcon: Icons.chat_bubble_rounded,
@@ -1406,7 +1588,8 @@ _AiToolBrand _brandForAiTool(String name) {
   }
   if (n.contains('copilot')) {
     return const _AiToolBrand(
-      logoUrl: 'https://logo.clearbit.com/github.com',
+      logoUrl:
+          'https://commons.wikimedia.org/wiki/Special:FilePath/GitHub%20Invertocat%20Logo.svg?width=200',
       vendor: 'Microsoft',
       category: 'Dev Tools',
       fallbackIcon: Icons.code_rounded,
@@ -1414,7 +1597,8 @@ _AiToolBrand _brandForAiTool(String name) {
   }
   if (n.contains('claude')) {
     return const _AiToolBrand(
-      logoUrl: 'https://logo.clearbit.com/anthropic.com',
+      logoUrl:
+          'https://commons.wikimedia.org/wiki/Special:FilePath/Claude%20AI%20symbol.svg?width=200',
       vendor: 'Anthropic',
       category: 'Generative AI',
       fallbackIcon: Icons.auto_awesome_rounded,
@@ -1422,7 +1606,8 @@ _AiToolBrand _brandForAiTool(String name) {
   }
   if (n.contains('gemini')) {
     return const _AiToolBrand(
-      logoUrl: 'https://logo.clearbit.com/google.com',
+      logoUrl:
+          'https://commons.wikimedia.org/wiki/Special:FilePath/Google%20Gemini%20icon%202025.svg?width=200',
       vendor: 'Google',
       category: 'Generative AI',
       fallbackIcon: Icons.diamond_outlined,
@@ -1894,664 +2079,6 @@ class _DepartmentCard extends StatelessWidget {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// AI STRATEGIC INSIGHTS — top 3 only, each with icon + priority badge +
-// timestamp + Read more.
-// ---------------------------------------------------------------------------
-// class _StrategicInsightsSection extends StatelessWidget {
-//   const _StrategicInsightsSection({required this.insights});
-
-//   final List<StrategicInsightData> insights;
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Column(
-//       crossAxisAlignment: CrossAxisAlignment.start,
-//       children: [
-//         const _SectionHeader(title: 'AI strategic insights'),
-//         const SizedBox(height: AppSpacing.md),
-//         ...insights.take(3).map((insight) => Padding(
-//               padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-//               child: _InsightCard(insight: insight),
-//             )),
-//       ],
-//     );
-//   }
-// }
-
-// class _InsightCard extends StatefulWidget {
-//   const _InsightCard({required this.insight});
-
-//   final StrategicInsightData insight;
-
-//   @override
-//   State<_InsightCard> createState() => _InsightCardState();
-// }
-
-// class _InsightCardState extends State<_InsightCard> {
-//   bool _expanded = false;
-
-//   ({Color color, String label}) _style(AppColorsData colors) {
-//     switch (widget.insight.impact) {
-//       case StrategicImpact.costSaving:
-//         return (color: colors.success, label: 'Cost saving');
-//       case StrategicImpact.risk:
-//         return (color: colors.danger, label: 'Risk');
-//       case StrategicImpact.growth:
-//         return (color: colors.primary, label: 'Growth');
-//     }
-//   }
-
-//   Color _priorityColor(AppColorsData colors) {
-//     switch (widget.insight.priority.toLowerCase()) {
-//       case 'high':
-//         return colors.danger;
-//       case 'medium':
-//         return colors.warning;
-//       default:
-//         return colors.info;
-//     }
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     final colors = AppColors.of(context);
-//     final s = _style(colors);
-//     final insight = widget.insight;
-//     return Container(
-//       padding: const EdgeInsets.all(AppSpacing.md),
-//       decoration: BoxDecoration(
-//         color: s.color.withValues(alpha: 0.06),
-//         borderRadius: BorderRadius.circular(16),
-//         border: Border.all(color: s.color.withValues(alpha: 0.25)),
-//       ),
-//       child: Row(
-//         crossAxisAlignment: CrossAxisAlignment.start,
-//         children: [
-//           Container(
-//             width: 36,
-//             height: 36,
-//             decoration: BoxDecoration(
-//               color: s.color.withValues(alpha: 0.14),
-//               borderRadius: BorderRadius.circular(11),
-//             ),
-//             child: Icon(insight.icon, color: s.color, size: 18),
-//           ),
-//           const SizedBox(width: AppSpacing.md),
-//           Expanded(
-//             child: Column(
-//               crossAxisAlignment: CrossAxisAlignment.start,
-//               children: [
-//                 Row(
-//                   children: [
-//                     Expanded(
-//                       child: Text(insight.title,
-//                           style: AppTypography.body(colors.textPrimary)
-//                               .copyWith(fontWeight: FontWeight.w600),
-//                           maxLines: 1,
-//                           overflow: TextOverflow.ellipsis),
-//                     ),
-//                     Container(
-//                       padding: const EdgeInsets.symmetric(
-//                           horizontal: AppSpacing.sm, vertical: 2),
-//                       decoration: BoxDecoration(
-//                         color: s.color.withValues(alpha: 0.14),
-//                         borderRadius: BorderRadius.circular(999),
-//                       ),
-//                       child:
-//                           Text(s.label, style: AppTypography.caption(s.color)),
-//                     ),
-//                   ],
-//                 ),
-//                 const SizedBox(height: 4),
-//                 Text(insight.description,
-//                     style: AppTypography.caption(colors.textSecondary),
-//                     maxLines: _expanded ? null : 2,
-//                     overflow: _expanded
-//                         ? TextOverflow.visible
-//                         : TextOverflow.ellipsis),
-//                 const SizedBox(height: AppSpacing.xs),
-//                 Row(
-//                   children: [
-//                     Container(
-//                       padding: const EdgeInsets.symmetric(
-//                           horizontal: 8, vertical: 2),
-//                       decoration: BoxDecoration(
-//                         color: _priorityColor(colors).withValues(alpha: 0.12),
-//                         borderRadius: BorderRadius.circular(999),
-//                       ),
-//                       child: Text(insight.priority.toUpperCase(),
-//                           style: AppTypography.caption(_priorityColor(colors))
-//                               .copyWith(
-//                                   fontWeight: FontWeight.w700, fontSize: 10)),
-//                     ),
-//                     const SizedBox(width: 6),
-//                     Text(insight.timestampLabel,
-//                         style: AppTypography.caption(colors.textSecondary)),
-//                     const Spacer(),
-//                     _ScaleOnTap(
-//                       onTap: () => setState(() => _expanded = !_expanded),
-//                       child: Text(_expanded ? 'Show less' : 'Read more',
-//                           style: AppTypography.caption(s.color)
-//                               .copyWith(fontWeight: FontWeight.w700)),
-//                     ),
-//                   ],
-//                 ),
-//               ],
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-// }
-
-// // ---------------------------------------------------------------------------
-// // EXECUTIVE APPROVALS — vendor, purpose, monthly/annual cost, risk badge,
-// // reason, Approve / Reject / View Details / Delegate.
-// // ---------------------------------------------------------------------------
-// // class _EscalatedApprovalsSection extends StatelessWidget {
-// //   const _EscalatedApprovalsSection({
-// //     required this.requests,
-// //     required this.onApprove,
-// //     required this.onReject,
-// //     required this.onDelegate,
-// //   });
-
-// //   final List<EscalatedApprovalData> requests;
-// //   final ValueChanged<String> onApprove;
-// //   final void Function(String id, String reason, String? note) onReject;
-// //   final void Function(String id, String delegateTo) onDelegate;
-
-// //   @override
-// //   Widget build(BuildContext context) {
-// //     final colors = AppColors.of(context);
-// //     return Column(
-// //       crossAxisAlignment: CrossAxisAlignment.start,
-// //       children: [
-// //         const _SectionHeader(title: 'Executive approvals'),
-// //         const SizedBox(height: AppSpacing.md),
-// //         if (requests.isEmpty)
-// //           Container(
-// //             padding: const EdgeInsets.all(AppSpacing.lg),
-// //             decoration: BoxDecoration(
-// //               color: colors.surfaceElevated,
-// //               borderRadius: BorderRadius.circular(16),
-// //               border: Border.all(color: colors.border),
-// //             ),
-// //             child: Text('Nothing needs your sign-off right now.',
-// //                 style: AppTypography.body(colors.textSecondary)),
-// //           )
-// //         else
-// //           ...requests.map((request) => Padding(
-// //                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-// //                 child: _EscalatedApprovalCard(
-// //                   request: request,
-// //                   onApprove: () => onApprove(request.id),
-// //                   onReject: (reason, note) =>
-// //                       onReject(request.id, reason, note),
-// //                   onDelegate: (delegateTo) =>
-// //                       onDelegate(request.id, delegateTo),
-// //                 ),
-// //               )),
-// //       ],
-// //     );
-// //   }
-// // }
-
-// class _EscalatedApprovalCard extends StatelessWidget {
-//   const _EscalatedApprovalCard({
-//     required this.request,
-//     required this.onApprove,
-//     required this.onReject,
-//     required this.onDelegate,
-//   });
-
-//   final EscalatedApprovalData request;
-//   final VoidCallback onApprove;
-//   final void Function(String reason, String? note) onReject;
-//   final ValueChanged<String> onDelegate;
-
-//   Color _priorityColor(AppColorsData colors) {
-//     switch (request.priority.toLowerCase()) {
-//       case 'high':
-//         return colors.danger;
-//       case 'medium':
-//         return colors.warning;
-//       default:
-//         return colors.success;
-//     }
-//   }
-
-//   Color _riskColor(AppColorsData colors) {
-//     switch (request.riskLevel.toLowerCase()) {
-//       case 'high':
-//         return colors.danger;
-//       case 'medium':
-//         return colors.warning;
-//       default:
-//         return colors.success;
-//     }
-//   }
-
-//   Future<void> _openRejectSheet(BuildContext context) async {
-//     final result = await showModalBottomSheet<_RejectResult>(
-//       context: context,
-//       isScrollControlled: true,
-//       backgroundColor: Colors.transparent,
-//       builder: (_) => _RejectReasonSheet(toolName: request.tool),
-//     );
-//     if (result != null) {
-//       onReject(result.reason, result.note);
-//     }
-//   }
-
-//   Future<void> _openDelegateSheet(BuildContext context) async {
-//     final colors = AppColors.of(context);
-//     const delegates = [
-//       'CFO — Marcus Bell',
-//       'COO — Rita Alvarez',
-//       'VP Eng — Priya Nair'
-//     ];
-//     final choice = await showModalBottomSheet<String>(
-//       context: context,
-//       backgroundColor: Colors.transparent,
-//       builder: (sheetContext) => Container(
-//         decoration: BoxDecoration(
-//           color: colors.background,
-//           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-//         ),
-//         padding: const EdgeInsets.fromLTRB(
-//             AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xl),
-//         child: Column(
-//           mainAxisSize: MainAxisSize.min,
-//           crossAxisAlignment: CrossAxisAlignment.start,
-//           children: [
-//             Text('Delegate this approval',
-//                 style: AppTypography.h3(colors.textPrimary)),
-//             const SizedBox(height: AppSpacing.md),
-//             for (final d in delegates)
-//               Padding(
-//                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-//                 child: _ScaleOnTap(
-//                   onTap: () => Navigator.of(sheetContext).pop(d),
-//                   child: Container(
-//                     width: double.infinity,
-//                     padding: const EdgeInsets.all(AppSpacing.md),
-//                     decoration: BoxDecoration(
-//                       color: colors.surfaceElevated,
-//                       borderRadius: BorderRadius.circular(14),
-//                       border: Border.all(color: colors.border),
-//                     ),
-//                     child: Text(d,
-//                         style: AppTypography.body(colors.textPrimary)
-//                             .copyWith(fontWeight: FontWeight.w600)),
-//                   ),
-//                 ),
-//               ),
-//           ],
-//         ),
-//       ),
-//     );
-//     if (choice != null) onDelegate(choice);
-//   }
-
-//   void _openDetails(BuildContext context) {
-//     showDialog(
-//       context: context,
-//       builder: (_) => AlertDialog(
-//         title: Text(request.tool),
-//         content: Column(
-//           mainAxisSize: MainAxisSize.min,
-//           crossAxisAlignment: CrossAxisAlignment.start,
-//           children: [
-//             Text('Vendor: ${request.vendor}'),
-//             const SizedBox(height: 6),
-//             Text('Purpose: ${request.purpose}'),
-//             const SizedBox(height: 6),
-//             Text(
-//                 'Monthly: \$${request.monthlyCost.toInt()} · Annual: \$${request.annualCost.toInt()}'),
-//             const SizedBox(height: 6),
-//             Text('Risk level: ${request.riskLevel}'),
-//             const SizedBox(height: 6),
-//             Text('Why CEO approval: ${request.reason}'),
-//           ],
-//         ),
-//         actions: [
-//           TextButton(
-//               onPressed: () => Navigator.of(context).pop(),
-//               child: const Text('Close')),
-//         ],
-//       ),
-//     );
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     final colors = AppColors.of(context);
-//     final pColor = _priorityColor(colors);
-//     final rColor = _riskColor(colors);
-//     return Container(
-//       padding: const EdgeInsets.all(AppSpacing.md),
-//       decoration: BoxDecoration(
-//         color: colors.surfaceElevated,
-//         borderRadius: BorderRadius.circular(16),
-//         border: Border.all(color: colors.border),
-//       ),
-//       child: Column(
-//         crossAxisAlignment: CrossAxisAlignment.start,
-//         children: [
-//           Row(
-//             children: [
-//               _DeptAvatar(name: request.department, size: 32),
-//               const SizedBox(width: AppSpacing.sm),
-//               Expanded(
-//                 child: Column(
-//                   crossAxisAlignment: CrossAxisAlignment.start,
-//                   children: [
-//                     Text(request.department,
-//                         style: AppTypography.body(colors.textPrimary)
-//                             .copyWith(fontWeight: FontWeight.w600),
-//                         maxLines: 1,
-//                         overflow: TextOverflow.ellipsis),
-//                     Text('Requested by ${request.requestedBy}',
-//                         style: AppTypography.caption(colors.textSecondary),
-//                         maxLines: 1,
-//                         overflow: TextOverflow.ellipsis),
-//                   ],
-//                 ),
-//               ),
-//               Container(
-//                 padding: const EdgeInsets.symmetric(
-//                     horizontal: AppSpacing.sm, vertical: 3),
-//                 decoration: BoxDecoration(
-//                   color: pColor.withValues(alpha: 0.12),
-//                   borderRadius: BorderRadius.circular(999),
-//                 ),
-//                 child: Text(request.priority,
-//                     style: AppTypography.caption(pColor)),
-//               ),
-//             ],
-//           ),
-//           const SizedBox(height: AppSpacing.sm),
-//           Text('${request.tool} · ${request.vendor}',
-//               style: AppTypography.body(colors.textPrimary)
-//                   .copyWith(fontWeight: FontWeight.w600)),
-//           const SizedBox(height: 2),
-//           Text(request.purpose,
-//               style: AppTypography.caption(colors.textSecondary)),
-//           const SizedBox(height: AppSpacing.xs),
-//           Wrap(
-//             spacing: AppSpacing.sm,
-//             runSpacing: 6,
-//             children: [
-//               Text(
-//                   '\$${request.monthlyCost.toInt()}/mo · \$${request.annualCost.toInt()}/yr',
-//                   style: AppTypography.caption(colors.textPrimary)
-//                       .copyWith(fontWeight: FontWeight.w600)),
-//               Container(
-//                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-//                 decoration: BoxDecoration(
-//                   color: rColor.withValues(alpha: 0.12),
-//                   borderRadius: BorderRadius.circular(999),
-//                 ),
-//                 child: Text('${request.riskLevel} risk',
-//                     style: AppTypography.caption(rColor)
-//                         .copyWith(fontWeight: FontWeight.w700)),
-//               ),
-//             ],
-//           ),
-//           const SizedBox(height: AppSpacing.sm),
-//           Row(
-//             children: [
-//               Expanded(
-//                 child: _ScaleOnTap(
-//                   onTap: () => _openRejectSheet(context),
-//                   child: Container(
-//                     height: 38,
-//                     alignment: Alignment.center,
-//                     decoration: BoxDecoration(
-//                       color: colors.danger.withValues(alpha: 0.10),
-//                       borderRadius: BorderRadius.circular(12),
-//                       border: Border.all(
-//                           color: colors.danger.withValues(alpha: 0.3)),
-//                     ),
-//                     child: Icon(Icons.close_rounded,
-//                         size: 16, color: colors.danger),
-//                   ),
-//                 ),
-//               ),
-//               const SizedBox(width: AppSpacing.xs),
-//               Expanded(
-//                 child: _ScaleOnTap(
-//                   onTap: () => _openDetails(context),
-//                   child: Container(
-//                     height: 38,
-//                     alignment: Alignment.center,
-//                     decoration: BoxDecoration(
-//                       color: colors.surface,
-//                       borderRadius: BorderRadius.circular(12),
-//                       border: Border.all(color: colors.border),
-//                     ),
-//                     child: Icon(Icons.visibility_outlined,
-//                         size: 16, color: colors.textSecondary),
-//                   ),
-//                 ),
-//               ),
-//               const SizedBox(width: AppSpacing.xs),
-//               Expanded(
-//                 child: _ScaleOnTap(
-//                   onTap: () => _openDelegateSheet(context),
-//                   child: Container(
-//                     height: 38,
-//                     alignment: Alignment.center,
-//                     decoration: BoxDecoration(
-//                       color: colors.info.withValues(alpha: 0.10),
-//                       borderRadius: BorderRadius.circular(12),
-//                       border:
-//                           Border.all(color: colors.info.withValues(alpha: 0.3)),
-//                     ),
-//                     child: Icon(Icons.forward_rounded,
-//                         size: 16, color: colors.info),
-//                   ),
-//                 ),
-//               ),
-//               const SizedBox(width: AppSpacing.xs),
-//               Expanded(
-//                 flex: 2,
-//                 child: _ScaleOnTap(
-//                   onTap: onApprove,
-//                   child: Container(
-//                     height: 38,
-//                     alignment: Alignment.center,
-//                     decoration: BoxDecoration(
-//                       borderRadius: BorderRadius.circular(12),
-//                       gradient: LinearGradient(
-//                           colors: [colors.primary, colors.secondary]),
-//                     ),
-//                     child: const Row(
-//                       mainAxisSize: MainAxisSize.min,
-//                       children: [
-//                         Icon(Icons.check_rounded,
-//                             size: 15, color: Colors.white),
-//                         SizedBox(width: 4),
-//                         Text('Approve',
-//                             style: TextStyle(
-//                                 color: Colors.white,
-//                                 fontWeight: FontWeight.w600,
-//                                 fontSize: 12)),
-//                       ],
-//                     ),
-//                   ),
-//                 ),
-//               ),
-//             ],
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-// }
-
-// class _RejectResult {
-//   const _RejectResult(this.reason, this.note);
-//   final String reason;
-//   final String? note;
-// }
-
-// class _RejectReasonSheet extends StatefulWidget {
-//   const _RejectReasonSheet({required this.toolName});
-//   final String toolName;
-
-//   @override
-//   State<_RejectReasonSheet> createState() => _RejectReasonSheetState();
-// }
-
-// class _RejectReasonSheetState extends State<_RejectReasonSheet> {
-//   static const _reasons = [
-//     'Over department budget',
-//     'Duplicate or overlapping tool',
-//     'Not aligned with strategy',
-//     'Vendor / security concern',
-//     'Other',
-//   ];
-
-//   String? _selectedReason;
-//   final _noteController = TextEditingController();
-
-//   @override
-//   void dispose() {
-//     _noteController.dispose();
-//     super.dispose();
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     final colors = AppColors.of(context);
-//     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-
-//     return Padding(
-//       padding: EdgeInsets.only(bottom: bottomInset),
-//       child: SafeArea(
-//         top: false,
-//         child: Container(
-//           decoration: BoxDecoration(
-//             color: colors.background,
-//             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-//           ),
-//           padding: const EdgeInsets.fromLTRB(
-//               AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xl),
-//           child: Column(
-//             mainAxisSize: MainAxisSize.min,
-//             crossAxisAlignment: CrossAxisAlignment.start,
-//             children: [
-//               Center(
-//                 child: Container(
-//                   width: 40,
-//                   height: 4,
-//                   margin: const EdgeInsets.only(bottom: AppSpacing.md),
-//                   decoration: BoxDecoration(
-//                     color: colors.border,
-//                     borderRadius: BorderRadius.circular(999),
-//                   ),
-//                 ),
-//               ),
-//               Text('Reject request',
-//                   style: AppTypography.h3(colors.textPrimary)),
-//               const SizedBox(height: 2),
-//               Text(widget.toolName,
-//                   style: AppTypography.caption(colors.textSecondary)),
-//               const SizedBox(height: AppSpacing.lg),
-//               Text('Reason',
-//                   style: AppTypography.body(colors.textPrimary)
-//                       .copyWith(fontWeight: FontWeight.w600)),
-//               const SizedBox(height: AppSpacing.sm),
-//               Wrap(
-//                 spacing: AppSpacing.sm,
-//                 runSpacing: AppSpacing.sm,
-//                 children: _reasons.map((reason) {
-//                   final selected = _selectedReason == reason;
-//                   return ChoiceChip(
-//                     label: Text(reason),
-//                     selected: selected,
-//                     showCheckmark: false,
-//                     onSelected: (_) => setState(() => _selectedReason = reason),
-//                     labelStyle: AppTypography.caption(
-//                         selected ? Colors.white : colors.textPrimary),
-//                     selectedColor: colors.primary,
-//                     backgroundColor: colors.surfaceElevated,
-//                     side: BorderSide(color: colors.border),
-//                   );
-//                 }).toList(),
-//               ),
-//               const SizedBox(height: AppSpacing.lg),
-//               Text('Add more detail (optional)',
-//                   style: AppTypography.body(colors.textPrimary)
-//                       .copyWith(fontWeight: FontWeight.w600)),
-//               const SizedBox(height: AppSpacing.sm),
-//               TextField(
-//                 controller: _noteController,
-//                 maxLines: 3,
-//                 style: AppTypography.body(colors.textPrimary),
-//                 decoration: InputDecoration(
-//                   hintText:
-//                       'e.g. Switch to the shared Claude Team plan instead',
-//                   hintStyle: AppTypography.caption(colors.textSecondary),
-//                   filled: true,
-//                   fillColor: colors.surfaceElevated,
-//                   border: OutlineInputBorder(
-//                     borderRadius: BorderRadius.circular(14),
-//                     borderSide: BorderSide(color: colors.border),
-//                   ),
-//                   enabledBorder: OutlineInputBorder(
-//                     borderRadius: BorderRadius.circular(14),
-//                     borderSide: BorderSide(color: colors.border),
-//                   ),
-//                   focusedBorder: OutlineInputBorder(
-//                     borderRadius: BorderRadius.circular(14),
-//                     borderSide: BorderSide(color: colors.primary),
-//                   ),
-//                 ),
-//               ),
-//               const SizedBox(height: AppSpacing.xl),
-//               Row(
-//                 children: [
-//                   Expanded(
-//                     child: OutlinedButton(
-//                       onPressed: () => Navigator.of(context).pop(),
-//                       child: const Text('Cancel'),
-//                     ),
-//                   ),
-//                   const SizedBox(width: AppSpacing.sm),
-//                   Expanded(
-//                     child: ElevatedButton(
-//                       onPressed: _selectedReason == null
-//                           ? null
-//                           : () => Navigator.of(context).pop(
-//                                 _RejectResult(
-//                                   _selectedReason!,
-//                                   _noteController.text.trim().isEmpty
-//                                       ? null
-//                                       : _noteController.text.trim(),
-//                                 ),
-//                               ),
-//                       style: ElevatedButton.styleFrom(
-//                         backgroundColor: colors.danger,
-//                         foregroundColor: Colors.white,
-//                       ),
-//                       child: const Text('Reject'),
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//             ],
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-// }
 
 // ---------------------------------------------------------------------------
 // TODAY'S FOCUS — exactly 3 items: Highest Risk Department, Largest

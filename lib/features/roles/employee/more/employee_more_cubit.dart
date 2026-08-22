@@ -73,7 +73,7 @@ class EmployeeMoreCubit extends Cubit<EmployeeMoreState> {
     emit(state.copyWith(isLoggingOut: true));
     try {
       await Future.delayed(const Duration(milliseconds: 600));
-      // TODO: clear auth session / tokens and navigate to the sign-in flow.
+     
     } finally {
       emit(state.copyWith(isLoggingOut: false));
     }

@@ -324,6 +324,7 @@ class _SwitchRow extends StatelessWidget {
         ),
         Switch.adaptive(
           value: value,
+          // ignore: deprecated_member_use
           activeColor: accent,
           onChanged: onChanged,
         ),

@@ -7,7 +7,7 @@ class ActivityTimelineItem {
   const ActivityTimelineItem({required this.title, required this.time});
 }
 
-/// TODO: flesh out with animated staggered entrance per item.
+
 class ActivityTimeline extends StatelessWidget {
   final List<ActivityTimelineItem> items;
   const ActivityTimeline({super.key, required this.items});

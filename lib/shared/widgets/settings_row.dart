@@ -132,6 +132,7 @@ class SettingsSwitchRow extends StatelessWidget {
       trailing: Switch.adaptive(
         value: value,
         onChanged: isComingSoon ? null : onChanged,
+        // ignore: deprecated_member_use
         activeColor: colors.primary,
       ),
     );

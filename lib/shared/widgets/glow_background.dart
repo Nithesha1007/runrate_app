@@ -37,12 +37,12 @@ class _GlowBackgroundState extends State<GlowBackground> with SingleTickerProvid
                     Positioned(
                       top: -60 + (t * 20),
                       right: -60,
-                      child: _orb(AppColors.primary.withOpacity(0.10), 220),
+                      child: _orb(AppColors.primary.withValues(alpha: 0.10), 220),
                     ),
                     Positioned(
                       bottom: -80 - (t * 15),
                       left: -70,
-                      child: _orb(AppColors.secondary.withOpacity(0.08), 260),
+                      child: _orb(AppColors.secondary.withValues(alpha: 0.08), 260),
                     ),
                   ],
                 );
@@ -61,7 +61,7 @@ class _GlowBackgroundState extends State<GlowBackground> with SingleTickerProvid
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: RadialGradient(colors: [color, color.withOpacity(0)]),
+        gradient: RadialGradient(colors: [color, color.withValues(alpha: 0)]),
       ),
     );
   }

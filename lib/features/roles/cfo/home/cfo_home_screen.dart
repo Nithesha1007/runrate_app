@@ -147,7 +147,7 @@ class _Header extends StatelessWidget {
             children: [
               IconButton(
                 onPressed: () {
-                  // TODO: navigate to notifications.
+                
                 },
                 icon: const Icon(Icons.notifications_outlined),
               ),
@@ -184,14 +184,14 @@ class _FinancialHealthCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final onDark = Colors.white;
-    final onDarkMuted = Colors.white70;
+    const onDark = Colors.white;
+    const onDarkMuted = Colors.white70;
 
     return Container(
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg, vertical: AppSpacing.md),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primary.withOpacity(0.95),
+        color: theme.colorScheme.primary.withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -422,7 +422,7 @@ class _InvoiceRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       decoration: BoxDecoration(
         border:
-            Border(top: BorderSide(color: theme.dividerColor.withOpacity(0.4))),
+            Border(top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.4))),
       ),
       child: Row(
         children: [
@@ -454,7 +454,7 @@ class _InvoiceRow extends StatelessWidget {
           else ...[
             _CircleIconButton(
               icon: Icons.check,
-              backgroundColor: success.withOpacity(0.15),
+              backgroundColor: success.withValues(alpha: 0.15),
               iconColor: success,
               tooltip: 'Approve',
               onPressed: () =>
@@ -463,7 +463,7 @@ class _InvoiceRow extends StatelessWidget {
             const SizedBox(width: AppSpacing.xs),
             _CircleIconButton(
               icon: Icons.close,
-              backgroundColor: danger.withOpacity(0.12),
+              backgroundColor: danger.withValues(alpha: 0.12),
               iconColor: danger,
               tooltip: 'Reject',
               onPressed: () => _confirmReject(context, invoice),

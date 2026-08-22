@@ -74,8 +74,8 @@ class _EmployeeMoreView extends StatelessWidget {
                 children: [
                   _ProfileHeader(state: state),
                   const SizedBox(height: AppSpacing.xl),
-                  _MenuGroup(
-                    items: const [
+                  const _MenuGroup(
+                    items: [
                       _MenuEntry(
                           icon: Icons.bar_chart_outlined, label: 'Reports'),
                       _MenuEntry(
@@ -86,8 +86,8 @@ class _EmployeeMoreView extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: AppSpacing.lg),
-                  _MenuGroup(
-                    items: const [
+                  const _MenuGroup(
+                    items: [
                       _MenuEntry(
                           icon: Icons.tune_outlined, label: 'Preferences'),
                       _MenuEntry(
@@ -130,7 +130,7 @@ class _ProfileHeader extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 24,
-            backgroundColor: context.primaryColor.withOpacity(0.12),
+            backgroundColor: context.primaryColor.withValues(alpha: 0.12),
             child: Text(
               state.employeeInitials,
               style: appFontStyle(

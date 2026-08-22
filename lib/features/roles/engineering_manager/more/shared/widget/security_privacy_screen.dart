@@ -21,7 +21,7 @@ import 'package:runrate/shared/widgets/staggered.dart';
 /// part was a reasonable call — a disabled feature reading as inactive is
 /// correct, not a color-language violation).
 ///
-/// TODO: `_sessions` below is mock data. Replace with a real fetch from
+
 /// your auth/session backend and wire "Log out" per session to your real
 /// "revoke session" endpoint.
 class SecurityPrivacyScreen extends StatefulWidget {
@@ -50,7 +50,7 @@ class _SecurityPrivacyScreenState extends State<SecurityPrivacyScreen>
   late final AnimationController _entrance;
   static const _blockCount = 4;
 
-  bool _twoFactorEnabled = false;
+  final bool _twoFactorEnabled = false;
 
   final List<_Session> _sessions = [
     _Session(
@@ -139,7 +139,7 @@ class _SecurityPrivacyScreenState extends State<SecurityPrivacyScreen>
               style: FilledButton.styleFrom(backgroundColor: colors.primary),
               onPressed: () {
                 if (formKey.currentState?.validate() != true) return;
-                // TODO: wire to your real change-password endpoint.
+               
                 Navigator.of(dialogContext).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Password updated.')),
@@ -158,7 +158,7 @@ class _SecurityPrivacyScreenState extends State<SecurityPrivacyScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Signed out of ${session.device}.')),
     );
-    // TODO: call your real "revoke session" endpoint here.
+
   }
 
   @override
@@ -235,7 +235,7 @@ class _SecurityOverviewHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
+    AppColors.of(context);
     return EmGradientHero(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

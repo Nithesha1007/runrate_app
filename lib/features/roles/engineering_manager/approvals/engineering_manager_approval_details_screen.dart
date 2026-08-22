@@ -149,7 +149,7 @@ class _TitleBlock extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: colors.primary.withOpacity(0.10),
+                color: colors.primary.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -168,7 +168,7 @@ class _TitleBlock extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: pColor.withOpacity(0.12),
+                color: pColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -328,9 +328,9 @@ class _DuplicateToolBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: colors.primary.withOpacity(0.06),
+        color: colors.primary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.primary.withOpacity(0.16)),
+        border: Border.all(color: colors.primary.withValues(alpha: 0.16)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -453,9 +453,9 @@ class _RejectedBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: colors.danger.withOpacity(0.08),
+        color: colors.danger.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.danger.withOpacity(0.25)),
+        border: Border.all(color: colors.danger.withValues(alpha: 0.25)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -513,7 +513,7 @@ class _DecisionBar extends StatelessWidget {
               label: const Text('Reject'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: colors.danger,
-                side: BorderSide(color: colors.danger.withOpacity(0.4)),
+                side: BorderSide(color: colors.danger.withValues(alpha: 0.4)),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),

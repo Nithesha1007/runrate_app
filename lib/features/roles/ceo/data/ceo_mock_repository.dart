@@ -53,7 +53,7 @@ class CeoMockRepository {
   /// Burn Rate, Runway — each with a trend so the UI can draw an arrow.
   Future<List<CompanyHealthStat>> fetchCompanyHealth() async {
     await Future.delayed(const Duration(milliseconds: 450));
-    return [
+    return const [
       CompanyHealthStat(
         label: 'Revenue',
         value: 1284000,
@@ -101,7 +101,7 @@ class CeoMockRepository {
   /// Today's key meetings for the Home screen.
   Future<List<MeetingModel>> fetchTodayMeetings() async {
     await Future.delayed(const Duration(milliseconds: 350));
-    return [
+    return const [
       MeetingModel(
         id: 'm1',
         title: 'Board Sync — Q3 Outlook',
@@ -432,7 +432,7 @@ class CeoMockRepository {
 
   Future<List<TeamModel>> fetchDepartments() async {
     await Future.delayed(const Duration(milliseconds: 500));
-    return [
+    return const[
       TeamModel(
         name: 'Engineering',
         spend: 182000,
@@ -446,8 +446,8 @@ class CeoMockRepository {
         activeAiTools: 6,
         topAiTool: 'GitHub Copilot',
         health: DepartmentHealth.atRisk,
-        monthlyTrend: const [140000, 151000, 160000, 168000, 175000, 182000],
-        members: const [
+        monthlyTrend:  [140000, 151000, 160000, 168000, 175000, 182000],
+        members:[
           DepartmentMember(
               name: 'Sam Rivera',
               role: 'Eng Manager',
@@ -478,8 +478,8 @@ class CeoMockRepository {
         activeAiTools: 4,
         topAiTool: 'ChatGPT Enterprise',
         health: DepartmentHealth.onTrack,
-        monthlyTrend: const [102000, 99000, 98500, 97000, 96500, 96000],
-        members: const [
+        monthlyTrend:  [102000, 99000, 98500, 97000, 96500, 96000],
+        members:  [
           DepartmentMember(
               name: 'Marcus Webb',
               role: 'Sales Director',
@@ -502,8 +502,8 @@ class CeoMockRepository {
         activeAiTools: 5,
         topAiTool: 'Jasper AI',
         health: DepartmentHealth.critical,
-        monthlyTrend: const [58000, 61000, 65000, 69000, 71000, 74000],
-        members: const [
+        monthlyTrend:  [58000, 61000, 65000, 69000, 71000, 74000],
+        members:  [
           DepartmentMember(
               name: 'Dana Cole',
               role: 'Marketing Lead',
@@ -529,8 +529,8 @@ class CeoMockRepository {
         activeAiTools: 3,
         topAiTool: 'Intercom Fin',
         health: DepartmentHealth.onTrack,
-        monthlyTrend: const [43000, 42500, 42000, 41800, 41300, 41000],
-        members: const [
+        monthlyTrend:  [43000, 42500, 42000, 41800, 41300, 41000],
+        members:  [
           DepartmentMember(
               name: 'Jon Ibarra',
               role: 'Support Lead',
@@ -551,8 +551,8 @@ class CeoMockRepository {
         activeAiTools: 2,
         topAiTool: 'ChatGPT Enterprise',
         health: DepartmentHealth.onTrack,
-        monthlyTrend: const [26500, 27000, 27200, 27600, 27800, 28000],
-        members: const [
+        monthlyTrend:  [26500, 27000, 27200, 27600, 27800, 28000],
+        members:  [
           DepartmentMember(
               name: 'Grace Kim',
               role: 'HR Director',
@@ -573,8 +573,8 @@ class CeoMockRepository {
         activeAiTools: 3,
         topAiTool: 'Gemini',
         health: DepartmentHealth.onTrack,
-        monthlyTrend: const [56000, 57500, 58800, 59900, 60600, 61300],
-        members: const [
+        monthlyTrend:  [56000, 57500, 58800, 59900, 60600, 61300],
+        members: [
           DepartmentMember(
               name: 'Ravi Desai',
               role: 'Ops Director',

@@ -19,7 +19,7 @@ import 'package:runrate/shared/widgets/staggered.dart';
 /// file with a glass / neon-accent treatment matching the new
 /// Notifications screen.
 ///
-/// TODO — IMPORTANT: the numbers on this screen (`_currentSpend`,
+
 /// `_allocatedBudget`, `_monthlyBurn`, `_monthlyHistory`,
 /// `_toolBreakdown`) are local mock fields so this screen compiles and
 /// looks right standalone. Per the build spec, these must come from the
@@ -49,7 +49,7 @@ class _BudgetForecastScreenState extends State<BudgetForecastScreen>
   late final AnimationController _entrance;
   static const _blockCount = 4;
 
-  // Mock data — see TODO above.
+
   final double _allocatedBudget = 500000;
   final double _currentSpend = 356000;
   final double _monthlyBurn = 118000;
@@ -291,7 +291,7 @@ class _GlassCard extends StatelessWidget {
                   color: accent,
                   boxShadow: [
                     BoxShadow(
-                      color: accent.withOpacity(0.7),
+                      color: accent.withValues(alpha: 0.7),
                       blurRadius: 8,
                       spreadRadius: 1,
                     ),
@@ -322,17 +322,17 @@ class _GlassCard extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                colors.textPrimary.withOpacity(0.05),
-                colors.textPrimary.withOpacity(0.02),
+                colors.textPrimary.withValues(alpha: 0.05),
+                colors.textPrimary.withValues(alpha: 0.02),
               ],
             ),
             border: Border.all(
-              color: colors.textSecondary.withOpacity(0.10),
+              color: colors.textSecondary.withValues(alpha: 0.10),
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: accent.withOpacity(0.05),
+                color: accent.withValues(alpha: 0.05),
                 blurRadius: 24,
                 offset: const Offset(0, 10),
               ),
@@ -428,17 +428,17 @@ class _BurnRateTrendCard extends StatelessWidget {
                                 colors: isLast
                                     ? [
                                         colors.primary,
-                                        colors.primary.withOpacity(0.55),
+                                        colors.primary.withValues(alpha: 0.55),
                                       ]
                                     : [
-                                        colors.primary.withOpacity(0.28),
-                                        colors.primary.withOpacity(0.12),
+                                        colors.primary.withValues(alpha: 0.28),
+                                        colors.primary.withValues(alpha: 0.12),
                                       ],
                               ),
                               boxShadow: isLast
                                   ? [
                                       BoxShadow(
-                                        color: colors.primary.withOpacity(0.5),
+                                        color: colors.primary.withValues(alpha: 0.5),
                                         blurRadius: 12,
                                         spreadRadius: 0.5,
                                       ),
@@ -512,7 +512,7 @@ class _QuarterForecastCard extends StatelessWidget {
                   size: const Size(72, 72),
                   painter: _RingPainter(
                     progress: value,
-                    trackColor: colors.textSecondary.withOpacity(0.10),
+                    trackColor: colors.textSecondary.withValues(alpha: 0.10),
                     progressColor: ringColor,
                   ),
                   child: SizedBox(
@@ -563,11 +563,11 @@ class _QuarterForecastCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               gradient: LinearGradient(
                 colors: [
-                  colors.info.withOpacity(0.16),
-                  colors.info.withOpacity(0.06),
+                  colors.info.withValues(alpha: 0.16),
+                  colors.info.withValues(alpha: 0.06),
                 ],
               ),
-              border: Border.all(color: colors.info.withOpacity(0.25)),
+              border: Border.all(color: colors.info.withValues(alpha: 0.25)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -620,7 +620,7 @@ class _RingPainter extends CustomPainter {
     canvas.drawCircle(center, radius, track);
 
     final glow = Paint()
-      ..color = progressColor.withOpacity(0.5)
+      ..color = progressColor.withValues(alpha: 0.5)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth + 3
       ..strokeCap = StrokeCap.round
@@ -715,7 +715,7 @@ class _ToolRow extends StatelessWidget {
                 color: accent,
                 boxShadow: [
                   BoxShadow(
-                    color: accent.withOpacity(0.6),
+                    color: accent.withValues(alpha: 0.6),
                     blurRadius: 6,
                     spreadRadius: 0.5,
                   ),
@@ -755,7 +755,7 @@ class _ToolRow extends StatelessWidget {
           borderRadius: BorderRadius.circular(4),
           child: Container(
             height: 5,
-            color: colors.textSecondary.withOpacity(0.08),
+            color: colors.textSecondary.withValues(alpha: 0.08),
             child: TweenAnimationBuilder<double>(
               tween: Tween(begin: 0, end: fraction.clamp(0, 1)),
               duration: Duration(milliseconds: 600 + delayMs),
@@ -767,11 +767,11 @@ class _ToolRow extends StatelessWidget {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(4),
                     gradient: LinearGradient(
-                      colors: [accent, accent.withOpacity(0.55)],
+                      colors: [accent, accent.withValues(alpha: 0.55)],
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: accent.withOpacity(0.45),
+                        color: accent.withValues(alpha: 0.45),
                         blurRadius: 6,
                       ),
                     ],

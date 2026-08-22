@@ -195,7 +195,7 @@ class CeoDepartmentDetailsScreen extends StatelessWidget {
             children: [
               stat('AI ROI', '${d.aiRoi.toStringAsFixed(1)}x'),
               stat('Adoption', '${d.aiAdoption.toStringAsFixed(0)}%'),
-              stat('Productivity', '${d.productivityScore.toStringAsFixed(0)}'),
+              stat('Productivity', d.productivityScore.toStringAsFixed(0)),
             ],
           ),
         ],
@@ -265,7 +265,6 @@ class _ToolUsageSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.appColors;
     final tools = _resolveTools(department);
     final totalUnused = tools.fold<int>(0, (s, t) => s + t.unusedSeats);
     final avgCostPerSeat = tools.isEmpty
@@ -285,7 +284,7 @@ class _ToolUsageSection extends StatelessWidget {
           AppCard(
             child: Row(
               children: [
-                Icon(Icons.savings_outlined, color: AppColors.success),
+                const Icon(Icons.savings_outlined, color: AppColors.success),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(
@@ -337,7 +336,7 @@ class _ToolCardState extends State<_ToolCard> {
           children: [
             Row(
               children: [
-                Icon(Icons.hub_outlined, color: AppColors.primary),
+                const Icon(Icons.hub_outlined, color: AppColors.primary),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(
@@ -598,7 +597,7 @@ class _OpportunitiesSection extends StatelessWidget {
                 child: AppCard(
                   child: Row(
                     children: [
-                      Icon(Icons.lightbulb_outline, color: AppColors.primary),
+                      const Icon(Icons.lightbulb_outline, color: AppColors.primary),
                       const SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: Column(

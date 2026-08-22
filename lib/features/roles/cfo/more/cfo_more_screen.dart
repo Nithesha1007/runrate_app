@@ -30,7 +30,7 @@ class _CfoMoreView extends StatelessWidget {
         child: BlocConsumer<CfoMoreCubit, CfoMoreState>(
           listener: (context, state) {
             if (state is CfoMoreLoggedOut) {
-              // TODO: replace with real navigation to the login/auth flow.
+             
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Logged out.')),
               );
@@ -58,7 +58,7 @@ class _CfoMoreView extends StatelessWidget {
               children: [
                 AppCard(child: _ProfileHeader(profile: loaded.profile)),
                 const SizedBox(height: AppSpacing.lg),
-                _SectionLabel('Insights'),
+                const _SectionLabel('Insights'),
                 AppCard(
                   child: Column(
                     children: [
@@ -67,7 +67,7 @@ class _CfoMoreView extends StatelessWidget {
                         title: 'Reports',
                         subtitle: 'Export financial reports and statements',
                         onTap: () {
-                          // TODO: navigate to reports.
+                       
                         },
                       ),
                       const Divider(height: 1),
@@ -76,14 +76,14 @@ class _CfoMoreView extends StatelessWidget {
                         title: 'Blog & insights',
                         subtitle: 'Guides and updates for finance teams',
                         onTap: () {
-                          // TODO: navigate to blog & insights.
+                         
                         },
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                _SectionLabel('Account'),
+                const _SectionLabel('Account'),
                 AppCard(
                   child: Column(
                     children: [
@@ -92,7 +92,7 @@ class _CfoMoreView extends StatelessWidget {
                         title: 'Profile',
                         subtitle: 'Name, email, and role',
                         onTap: () {
-                          // TODO: navigate to profile.
+
                         },
                       ),
                       const Divider(height: 1),
@@ -101,7 +101,7 @@ class _CfoMoreView extends StatelessWidget {
                         title: 'Preferences',
                         subtitle: 'Notifications, currency, and language',
                         onTap: () {
-                          // TODO: navigate to preferences.
+                        
                         },
                       ),
                       const Divider(height: 1),
@@ -110,7 +110,7 @@ class _CfoMoreView extends StatelessWidget {
                         title: 'Security',
                         subtitle: 'Password, 2FA, and active sessions',
                         onTap: () {
-                          // TODO: navigate to security.
+                         
                         },
                       ),
                     ],

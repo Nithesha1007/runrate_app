@@ -34,7 +34,6 @@ class _Report {
 /// local to this file with the glass / neon-accent treatment used on
 /// the Notifications and Budget & Forecast screens.
 ///
-/// TODO: `_fetchReports()` below returns mock data after an artificial
 /// delay, matching the pattern already used by
 /// `EngineeringManagerMoreCubit._fetchMockProfile()`. Replace with your
 /// real reports-listing endpoint. "Generate Report" should call your
@@ -119,8 +118,7 @@ class _TeamReportsScreenState extends State<TeamReportsScreen>
   }
 
   void _generateReport() {
-    // TODO: call your real report-generation endpoint/job here.
-    ScaffoldMessenger.of(context).showSnackBar(
+ ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Generating a new report…')),
     );
   }
@@ -244,14 +242,14 @@ class _TeamReportsScreenState extends State<TeamReportsScreen>
               Column(
                 children: List.generate(
                   3,
-                  (i) => Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  (i) => const Padding(
+                    padding: EdgeInsets.only(bottom: AppSpacing.sm),
                     child: EmSkeletonBox(height: 76, radius: 18),
                   ),
                 ),
               )
             else if (reports.isEmpty)
-              EmEmptyState(
+              const EmEmptyState(
                 icon: Icons.description_outlined,
                 title: 'No reports found',
                 message: 'Try a different filter or search term.',
@@ -291,11 +289,11 @@ class _GlassSearchField extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            colors.textPrimary.withOpacity(0.05),
-            colors.textPrimary.withOpacity(0.02),
+            colors.textPrimary.withValues(alpha: 0.05),
+            colors.textPrimary.withValues(alpha: 0.02),
           ],
         ),
-        border: Border.all(color: colors.textSecondary.withOpacity(0.14)),
+        border: Border.all(color: colors.textSecondary.withValues(alpha: 0.14)),
       ),
       child: TextField(
         onChanged: onChanged,
@@ -345,22 +343,22 @@ class _FilterChip extends StatelessWidget {
           gradient: selected
               ? LinearGradient(
                   colors: [
-                    colors.primary.withOpacity(0.9),
-                    colors.primary.withOpacity(0.6),
+                    colors.primary.withValues(alpha: 0.9),
+                    colors.primary.withValues(alpha: 0.6),
                   ],
                 )
               : null,
-          color: selected ? null : colors.textPrimary.withOpacity(0.03),
+          color: selected ? null : colors.textPrimary.withValues(alpha: 0.03),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: selected
-                ? colors.primary.withOpacity(0.8)
-                : colors.textSecondary.withOpacity(0.14),
+                ? colors.primary.withValues(alpha: 0.8)
+                : colors.textSecondary.withValues(alpha: 0.14),
           ),
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: colors.primary.withOpacity(0.4),
+                    color: colors.primary.withValues(alpha: 0.4),
                     blurRadius: 10,
                     spreadRadius: 0.5,
                   ),
@@ -413,14 +411,14 @@ class _ReportCard extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            colors.textPrimary.withOpacity(0.05),
-            colors.textPrimary.withOpacity(0.02),
+            colors.textPrimary.withValues(alpha: 0.05),
+            colors.textPrimary.withValues(alpha: 0.02),
           ],
         ),
-        border: Border.all(color: colors.textSecondary.withOpacity(0.10)),
+        border: Border.all(color: colors.textSecondary.withValues(alpha: 0.10)),
         boxShadow: [
           BoxShadow(
-            color: accent.withOpacity(0.04),
+            color: accent.withValues(alpha: 0.04),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -436,12 +434,12 @@ class _ReportCard extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [accent.withOpacity(0.30), accent.withOpacity(0.10)],
+                colors: [accent.withValues(alpha: 0.30), accent.withValues(alpha: 0.10)],
               ),
-              border: Border.all(color: accent.withOpacity(0.45)),
+              border: Border.all(color: accent.withValues(alpha: 0.45)),
               boxShadow: [
                 BoxShadow(
-                  color: accent.withOpacity(0.25),
+                  color: accent.withValues(alpha: 0.25),
                   blurRadius: 10,
                   spreadRadius: 0.5,
                 ),
@@ -477,7 +475,7 @@ class _ReportCard extends StatelessWidget {
             icon: Icons.visibility_outlined,
             color: colors.textSecondary,
             onTap: () {
-              // TODO: open your real report viewer.
+         
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Opening ${report.name}…')),
               );
@@ -488,7 +486,7 @@ class _ReportCard extends StatelessWidget {
             icon: Icons.download_rounded,
             color: accent,
             onTap: () {
-              // TODO: wire to your real download/export flow.
+
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Downloading ${report.name}…')),
               );
@@ -521,8 +519,8 @@ class _GlowIconButton extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: color.withOpacity(0.10),
-          border: Border.all(color: color.withOpacity(0.25)),
+          color: color.withValues(alpha: 0.10),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
         ),
         child: Icon(icon, size: 16, color: color),
       ),

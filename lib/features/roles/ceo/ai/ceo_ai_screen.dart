@@ -21,7 +21,7 @@ import '../../../../shared/widgets/typing_indicator.dart';
 class CeoAiScreen extends StatelessWidget {
   const CeoAiScreen({super.key, this.userName});
 
-  /// TODO: wire to the logged-in CEO's real first name once available.
+ 
   final String? userName;
 
   @override

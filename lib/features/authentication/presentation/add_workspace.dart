@@ -52,7 +52,7 @@ class _AddWorkspaceScreenState extends State<AddWorkspaceScreen>
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
 
-    // TODO: replace with an actual API call to create the org.
+
     await Future.delayed(const Duration(milliseconds: 900));
 
     if (!mounted) return;
@@ -98,8 +98,8 @@ class _AddWorkspaceScreenState extends State<AddWorkspaceScreen>
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          primary.withOpacity(0.9),
-                          primary.withOpacity(0.55),
+                          primary.withValues(alpha: 0.9),
+                          primary.withValues(alpha: 0.55),
                         ],
                       ),
                     ),
@@ -134,7 +134,7 @@ class _AddWorkspaceScreenState extends State<AddWorkspaceScreen>
                               Text(
                                 'Set up a new organization for your team',
                                 style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: Colors.white.withValues(alpha: 0.9),
                                 ),
                               ),
                             ],

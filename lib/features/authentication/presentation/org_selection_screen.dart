@@ -34,8 +34,8 @@ class _OrgSelectionScreenState extends State<OrgSelectionScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
-  // TODO: replace with orgs from your API/cubit once available.
-  final List<Organization> _orgs = [
+ 
+  final List<Organization> _orgs = const [
     Organization(id: 'org_1', name: 'Acme Corp', memberLabel: '128 members'),
     Organization(id: 'org_2', name: 'Nimbus Labs', memberLabel: '42 members'),
     Organization(
@@ -238,12 +238,12 @@ class _AddWorkspaceTileState extends State<_AddWorkspaceTile>
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  primary.withOpacity(0.05 + 0.03 * t),
-                  primary.withOpacity(0.0),
+                  primary.withValues(alpha: 0.05 + 0.03 * t),
+                  primary.withValues(alpha: 0.0),
                 ],
               ),
               border: Border.all(
-                color: primary.withOpacity(0.25 + 0.2 * t),
+                color: primary.withValues(alpha: 0.25 + 0.2 * t),
                 width: 1.4,
               ),
             ),
@@ -252,7 +252,7 @@ class _AddWorkspaceTileState extends State<_AddWorkspaceTile>
                 Transform.scale(
                   scale: 1.0 + 0.08 * t,
                   child: CircleAvatar(
-                    backgroundColor: primary.withOpacity(0.12),
+                    backgroundColor: primary.withValues(alpha: 0.12),
                     foregroundColor: primary,
                     child: const Icon(Icons.add_rounded),
                   ),

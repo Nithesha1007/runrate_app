@@ -29,7 +29,7 @@ import '../../../../shared/widgets/typing_indicator.dart';
 class EngineeringManagerAiScreen extends StatelessWidget {
   const EngineeringManagerAiScreen({super.key, this.userName = 'Priya'});
 
-  /// TODO: wire to the logged-in Engineering Manager's real first name.
+ 
   final String userName;
 
   @override

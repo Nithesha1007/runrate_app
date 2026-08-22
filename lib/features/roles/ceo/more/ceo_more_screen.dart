@@ -72,18 +72,18 @@ class CeoMoreScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.xxl),
-            _Staggered(
+           const _Staggered(
               index: 1,
               child: _SectionLabel('Preferences'),
             ),
             const SizedBox(height: AppSpacing.md),
-            _Staggered(index: 1, child: const _ThemeToggleTile()),
+          const _Staggered(index: 1, child:  _ThemeToggleTile()),
             const SizedBox(height: AppSpacing.xxl),
-            _Staggered(index: 2, child: _SectionLabel('Notifications')),
+         const   _Staggered(index: 2, child: _SectionLabel('Notifications')),
             const SizedBox(height: AppSpacing.md),
-            _Staggered(index: 2, child: const _NotificationSettingsCard()),
+          const  _Staggered(index: 2, child:  _NotificationSettingsCard()),
             const SizedBox(height: AppSpacing.xxl),
-            _Staggered(index: 3, child: _SectionLabel('Account & Security')),
+         const   _Staggered(index: 3, child: _SectionLabel('Account & Security')),
             const SizedBox(height: AppSpacing.md),
             _Staggered(
               index: 3,
@@ -105,7 +105,7 @@ class CeoMoreScreen extends StatelessWidget {
               ]),
             ),
             const SizedBox(height: AppSpacing.xxl),
-            _Staggered(index: 4, child: _SectionLabel('Reports & Insights')),
+       const     _Staggered(index: 4, child: _SectionLabel('Reports & Insights')),
             const SizedBox(height: AppSpacing.md),
             _Staggered(
               index: 4,
@@ -146,7 +146,7 @@ class CeoMoreScreen extends StatelessWidget {
               ]),
             ),
             const SizedBox(height: AppSpacing.xxl),
-            _Staggered(index: 5, child: _SectionLabel('Help & Support')),
+         const   _Staggered(index: 5, child: _SectionLabel('Help & Support')),
             const SizedBox(height: AppSpacing.md),
             _Staggered(
               index: 5,
@@ -525,6 +525,7 @@ class _ThemeToggleTile extends StatelessWidget {
           ),
           Switch.adaptive(
             value: isDark,
+            // ignore: deprecated_member_use
             activeColor: colors.primary,
             onChanged: (_) => context.read<ThemeCubit>().toggle(),
           ),
@@ -611,6 +612,7 @@ class _SwitchRow extends StatelessWidget {
         ),
         Switch.adaptive(
           value: value,
+          // ignore: deprecated_member_use
           activeColor: accent,
           onChanged: onChanged,
         ),
@@ -652,6 +654,7 @@ class _TwoFactorTileState extends State<_TwoFactorTile> {
           ),
           Switch.adaptive(
             value: _enabled,
+            // ignore: deprecated_member_use
             activeColor: colors.success,
             onChanged: (v) {
               showAppToast(context, 'Two-factor authentication is coming soon');

@@ -34,23 +34,20 @@ BudgetHealthStatus budgetHealthStatusFor(double utilization) {
   if (utilization >= 0.8) return BudgetHealthStatus.warning;
   return BudgetHealthStatus.healthy;
 }
-
 String budgetHealthLabelFor(BudgetHealthStatus status) => switch (status) {
       BudgetHealthStatus.healthy => 'Healthy',
       BudgetHealthStatus.warning => 'Warning',
       BudgetHealthStatus.critical => 'Critical',
     };
-
 class CeoBudgetHealthCard extends StatelessWidget {
   const CeoBudgetHealthCard({super.key, required this.data});
   final CeoBudgetHealthData data;
-
   static const _bgTop = Color(0xFF15192E);
   static const _bgBottom = Color(0xFF23294A);
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
+    AppColors.of(context);
     final status = budgetHealthStatusFor(data.utilization);
     final statusColor = switch (status) {
       BudgetHealthStatus.healthy => const Color(0xFF3DDC84),

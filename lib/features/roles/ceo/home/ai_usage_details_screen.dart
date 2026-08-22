@@ -8,6 +8,25 @@
 // Spend / export actions), a dynamic AI Insight callout, search + category
 // filter + sort controls, and the full tool utilization list with per-tool
 // spend, trend, adoption ring, and unused-seat callouts.
+//
+// v2 — visual pass:
+//   • Real brand logo images for the tools that have an official, square,
+//     icon-only mark on Wikimedia Commons (ChatGPT, Claude, Gemini,
+//     GitHub Copilot, Notion, Grammarly). Loaded through Commons'
+//     Special:FilePath redirector, which returns a rendered PNG thumbnail —
+//     so Image.network works with zero extra SVG dependencies. Every logo
+//     keeps its existing icon fallback if the network image fails to load.
+//   • Tools without a verified square Commons icon (Jasper, Midjourney,
+//     Zapier, Otter.ai, Perplexity, Writer) keep a polished gradient
+//     Material-icon badge instead of risking a broken/wrong image.
+//   • Hero card gets a soft decorative glow and a subtle top accent stripe
+//     per tool category on each card for faster visual scanning.
+//   • Tool cards are now tappable (scale-on-tap) and surface a "Reclaim
+//     $X/mo" chip when a tool has unused seats, making the optimization
+//     opportunity visible at a glance instead of only in the insight
+//     callout.
+//   • AI Insight callout gets a subtle pulsing icon to draw the eye without
+//     being distracting.
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -30,6 +49,25 @@ extension AiToolCategoryX on AiToolCategory {
         AiToolCategory.devTools => 'Dev Tools',
         AiToolCategory.marketing => 'Marketing',
         AiToolCategory.productivity => 'Productivity',
+      };
+
+  List<Color> get accentGradient => switch (this) {
+        AiToolCategory.generativeAi => const [
+            Color(0xFF6C5CE7),
+            Color(0xFF8E7CFF)
+          ],
+        AiToolCategory.devTools => const [
+            Color(0xFF2F80ED),
+            Color(0xFF56CCF2)
+          ],
+        AiToolCategory.marketing => const [
+            Color(0xFFE85D75),
+            Color(0xFFF2994A)
+          ],
+        AiToolCategory.productivity => const [
+            Color(0xFF11998E),
+            Color(0xFF38EF7D)
+          ],
       };
 }
 
@@ -82,6 +120,8 @@ class AiUsagePortfolioData {
   double get monthlySpend => tools.fold(0, (s, t) => s + t.monthlySpend);
   double get annualRunRate => monthlySpend * 12;
   int get totalUnusedSeats => tools.fold(0, (s, t) => s + t.unusedSeats);
+  double get totalReclaimableMonthly =>
+      tools.fold(0, (s, t) => s + t.reclaimableMonthly);
 
   AiToolDetail get lowestAdoptionTool =>
       tools.reduce((a, b) => a.adoptionRate <= b.adoptionRate ? a : b);
@@ -260,6 +300,39 @@ class AiUsageDetailCubit extends Cubit<AiUsageDetailState> {
       ),
     ]);
   }
+}
+
+// =============================================================================
+// BRAND MAP — real logos for tools that have a verified, square, icon-only
+// mark on Wikimedia Commons. Everything else falls back to a gradient badge
+// using the Material icon already defined on AiToolDetail.
+//
+// Images are served through Commons' Special:FilePath redirector
+// (`?width=200`), which 302-redirects to a rendered PNG thumbnail — so
+// Image.network can decode it directly with no flutter_svg dependency.
+// =============================================================================
+
+String? _brandLogoUrlFor(String toolName) {
+  final n = toolName.toLowerCase();
+  if (n.contains('chatgpt') || n.contains('gpt')) {
+    return 'https://commons.wikimedia.org/wiki/Special:FilePath/ChatGPT%20logo.svg?width=200';
+  }
+  if (n.contains('copilot')) {
+    return 'https://commons.wikimedia.org/wiki/Special:FilePath/GitHub%20Invertocat%20Logo.svg?width=200';
+  }
+  if (n.contains('claude')) {
+    return 'https://commons.wikimedia.org/wiki/Special:FilePath/Claude%20AI%20symbol.svg?width=200';
+  }
+  if (n.contains('gemini')) {
+    return 'https://commons.wikimedia.org/wiki/Special:FilePath/Google%20Gemini%20icon%202025.svg?width=200';
+  }
+  if (n.contains('notion')) {
+    return 'https://commons.wikimedia.org/wiki/Special:FilePath/Notion-logo.svg?width=200';
+  }
+  if (n.contains('grammarly')) {
+    return 'https://commons.wikimedia.org/wiki/Special:FilePath/Grammarly%20logo%202024.svg?width=200';
+  }
+  return null;
 }
 
 // =============================================================================
@@ -516,6 +589,11 @@ class _RoundIconButton extends StatelessWidget {
 
 // -----------------------------------------------------------------------
 // PORTFOLIO HERO CARD
+//
+// v2 — added a soft decorative glow (two blurred circles clipped inside the
+// card radius) behind the content for a bit of depth, and a third hero
+// stat tile (Reclaimable/mo) so the optimization opportunity is visible
+// without scrolling to the insight callout below.
 // -----------------------------------------------------------------------
 class _PortfolioHeroCard extends StatelessWidget {
   const _PortfolioHeroCard({required this.data});
@@ -524,146 +602,221 @@ class _PortfolioHeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            colors.primary,
-            colors.secondary,
-            colors.primary.withValues(alpha: 0.85),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(28),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              colors.primary,
+              colors.secondary,
+              colors.primary.withValues(alpha: 0.85),
+            ],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: colors.primary.withValues(alpha: 0.28),
+              blurRadius: 24,
+              offset: const Offset(0, 12),
+            ),
           ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: colors.primary.withValues(alpha: 0.28),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('AI Portfolio Overview',
-                        style: AppTypography.h3(Colors.white)),
-                    const SizedBox(height: 2),
-                    Text('Active deployments across the organization',
-                        style: AppTypography.caption(
-                            Colors.white.withValues(alpha: 0.85))),
-                  ],
+        child: Stack(
+          children: [
+            Positioned(
+              top: -40,
+              right: -30,
+              child: Container(
+                width: 140,
+                height: 140,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.08),
                 ),
               ),
-              _GlassIconButton(
-                icon: Icons.autorenew_rounded,
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Refreshing portfolio…')),
-                  );
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Row(
-            children: [
-              Expanded(
-                child: _HeroStatTile(
-                  label: 'ACTIVE TOOLS',
-                  value: '${data.activeToolCount}',
+            ),
+            Positioned(
+              bottom: -60,
+              left: -20,
+              child: Container(
+                width: 160,
+                height: 160,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.06),
                 ),
               ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: _HeroStatTile(
-                  label: 'ANNUAL RUN RATE',
-                  value: '\$${_compact(data.annualRunRate)}',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Row(
-            children: [
-              Expanded(
-                child: _ScaleTap(
-                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Spend optimization scan started…')),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('AI Portfolio Overview',
+                                style: AppTypography.h3(Colors.white)),
+                            const SizedBox(height: 2),
+                            Text(
+                                'Active deployments across the organization',
+                                style: AppTypography.caption(
+                                    Colors.white.withValues(alpha: 0.85))),
+                          ],
+                        ),
+                      ),
+                      _GlassIconButton(
+                        icon: Icons.autorenew_rounded,
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Refreshing portfolio…')),
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                  child: Container(
-                    height: 46,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.auto_fix_high_rounded,
-                            size: 17, color: colors.primary),
-                        const SizedBox(width: 8),
-                        Text('Optimize Spend',
-                            style: AppTypography.body(colors.primary)
-                                .copyWith(fontWeight: FontWeight.w700)),
-                      ],
-                    ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _HeroStatTile(
+                          label: 'ACTIVE TOOLS',
+                          value: '${data.activeToolCount}',
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: _HeroStatTile(
+                          label: 'ANNUAL RUN RATE',
+                          value: '\$${_compact(data.annualRunRate)}',
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: AppSpacing.sm),
+                  _HeroStatTile(
+                    label: 'RECLAIMABLE / MONTH',
+                    value: '\$${_compact(data.totalReclaimableMonthly)}',
+                    icon: Icons.savings_rounded,
+                    fullWidth: true,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _ScaleTap(
+                          onTap: () =>
+                              ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content:
+                                    Text('Spend optimization scan started…')),
+                          ),
+                          child: Container(
+                            height: 46,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.auto_fix_high_rounded,
+                                    size: 17, color: colors.primary),
+                                const SizedBox(width: 8),
+                                Text('Optimize Spend',
+                                    style: AppTypography.body(colors.primary)
+                                        .copyWith(
+                                            fontWeight: FontWeight.w700)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      _GlassIconButton(
+                        icon: Icons.ios_share_rounded,
+                        onTap: () =>
+                            ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Exporting portfolio report…')),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(width: AppSpacing.sm),
-              _GlassIconButton(
-                icon: Icons.ios_share_rounded,
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Exporting portfolio report…')),
-                ),
-              ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _HeroStatTile extends StatelessWidget {
-  const _HeroStatTile({required this.label, required this.value});
+  const _HeroStatTile({
+    required this.label,
+    required this.value,
+    this.icon,
+    this.fullWidth = false,
+  });
   final String label;
   final String value;
+  final IconData? icon;
+  final bool fullWidth;
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: fullWidth ? double.infinity : null,
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md, vertical: AppSpacing.md),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(18),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label,
-              style: AppTypography.caption(Colors.white.withValues(alpha: 0.8))
-                  .copyWith(letterSpacing: 0.4, fontSize: 10)),
-          const SizedBox(height: 4),
-          Text(value,
-              style: AppTypography.h2(Colors.white)
-                  .copyWith(fontWeight: FontWeight.w800)),
-        ],
-      ),
+      child: fullWidth
+          ? Row(
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, color: Colors.white.withValues(alpha: 0.85),
+                      size: 16),
+                  const SizedBox(width: AppSpacing.sm),
+                ],
+                Expanded(
+                  child: Text(label,
+                      style: AppTypography.caption(
+                              Colors.white.withValues(alpha: 0.8))
+                          .copyWith(letterSpacing: 0.4, fontSize: 10)),
+                ),
+                Text(value,
+                    style: AppTypography.body(Colors.white)
+                        .copyWith(fontWeight: FontWeight.w800)),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: AppTypography.caption(
+                            Colors.white.withValues(alpha: 0.8))
+                        .copyWith(letterSpacing: 0.4, fontSize: 10)),
+                const SizedBox(height: 4),
+                Text(value,
+                    style: AppTypography.h2(Colors.white)
+                        .copyWith(fontWeight: FontWeight.w800)),
+              ],
+            ),
     );
   }
 }
@@ -724,16 +877,41 @@ class _ScaleTapState extends State<_ScaleTap> {
 
 // -----------------------------------------------------------------------
 // AI INSIGHT CALLOUT — dynamically calls out the lowest-adoption tool.
+// v2 — the icon badge now pulses gently (a slow scale/opacity breathe) so
+// the callout draws the eye on first load without being distracting.
 // -----------------------------------------------------------------------
-class _InsightCallout extends StatelessWidget {
+class _InsightCallout extends StatefulWidget {
   const _InsightCallout({required this.data});
   final AiUsagePortfolioData data;
 
   @override
+  State<_InsightCallout> createState() => _InsightCalloutState();
+}
+
+class _InsightCalloutState extends State<_InsightCallout>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulseController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final tool = data.lowestAdoptionTool;
-    final target = 0.60;
+    final tool = widget.data.lowestAdoptionTool;
+    const target = 0.60;
     final savings = tool.reclaimableMonthly;
 
     return Container(
@@ -746,15 +924,25 @@ class _InsightCallout extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: colors.primary.withValues(alpha: 0.14),
-              shape: BoxShape.circle,
+          AnimatedBuilder(
+            animation: _pulseController,
+            builder: (context, child) {
+              final t = _pulseController.value;
+              return Transform.scale(
+                scale: 1.0 + (t * 0.08),
+                child: Opacity(opacity: 0.85 + (t * 0.15), child: child),
+              );
+            },
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: colors.primary.withValues(alpha: 0.14),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.auto_awesome_rounded,
+                  color: colors.primary, size: 18),
             ),
-            child: Icon(Icons.auto_awesome_rounded,
-                color: colors.primary, size: 18),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -780,8 +968,8 @@ class _InsightCallout extends StatelessWidget {
                       ),
                       TextSpan(
                           text:
-                              '${data.tools.first.name} utilization is strong, but '
-                              '${data.totalUnusedSeats} seats remain unassigned company-wide.'),
+                              '${widget.data.tools.first.name} utilization is strong, but '
+                              '${widget.data.totalUnusedSeats} seats remain unassigned company-wide.'),
                     ],
                   ),
                 ),
@@ -939,6 +1127,13 @@ class _SortButton extends StatelessWidget {
 
 // -----------------------------------------------------------------------
 // TOOL CARD
+//
+// v2 — now tap-scalable (opens a "coming soon" snackbar until a real
+// per-tool detail route exists), shows a real brand logo image when one is
+// available (falls back to the original gradient Material-icon badge
+// otherwise), carries a thin category-colored accent stripe down the left
+// edge for fast visual scanning, and surfaces a "Reclaim $X/mo" chip next
+// to the unused-seats stat whenever a tool has seats sitting idle.
 // -----------------------------------------------------------------------
 class _ToolCard extends StatelessWidget {
   const _ToolCard({required this.tool});
@@ -956,125 +1151,220 @@ class _ToolCard extends StatelessWidget {
     final adoptionColor = _adoptionColor(colors);
     final isPositiveTrend = tool.trendPercent > 0;
     final isFlatTrend = tool.trendPercent == 0;
+    final logoUrl = _brandLogoUrlFor(tool.name);
+    final accent = tool.category.accentGradient;
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colors.surfaceElevated,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.border),
+    return _ScaleTap(
+      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${tool.name} details — coming soon')),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: adoptionColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Icon(tool.icon, color: adoptionColor, size: 20),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(tool.name,
-                        style: AppTypography.body(colors.textPrimary)
-                            .copyWith(fontWeight: FontWeight.w700),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                    Text('${tool.vendor} · ${tool.category.label}',
-                        style: AppTypography.caption(colors.textSecondary),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text('\$${_compact(tool.monthlySpend)}/mo',
-                      style: AppTypography.body(colors.textPrimary)
-                          .copyWith(fontWeight: FontWeight.w700)),
-                  if (!isFlatTrend)
-                    Container(
-                      margin: const EdgeInsets.only(top: 2),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 1),
-                      decoration: BoxDecoration(
-                        color:
-                            (isPositiveTrend ? colors.success : colors.danger)
-                                .withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        '${isPositiveTrend ? '↑' : '↓'} ${tool.trendPercent.abs().toStringAsFixed(0)}%',
-                        style: AppTypography.caption(isPositiveTrend
-                                ? colors.success
-                                : colors.danger)
-                            .copyWith(
-                                fontWeight: FontWeight.w700, fontSize: 10),
-                      ),
-                    )
-                  else
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text('→ 0%',
-                          style: AppTypography.caption(colors.textSecondary)),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          decoration: BoxDecoration(
+            color: colors.surfaceElevated,
+            border: Border.all(color: colors.border),
+          ),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  width: 4,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: accent,
                     ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: _StatColumn(
-                  label: 'Active Users',
-                  value: '${tool.activeUsers}',
-                  colors: colors,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: _StatColumn(
-                  label: 'Adoption',
-                  value: '${(tool.adoptionRate * 100).toInt()}%',
-                  colors: colors,
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 42,
+                              height: 42,
+                              padding: logoUrl != null
+                                  ? const EdgeInsets.all(8)
+                                  : EdgeInsets.zero,
+                              decoration: BoxDecoration(
+                                color: logoUrl != null
+                                    ? colors.surface
+                                    : adoptionColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(13),
+                                border: logoUrl != null
+                                    ? Border.all(color: colors.border)
+                                    : null,
+                              ),
+                              child: logoUrl != null
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Image.network(
+                                        logoUrl,
+                                        fit: BoxFit.contain,
+                                        errorBuilder:
+                                            (context, error, stack) => Icon(
+                                                tool.icon,
+                                                color: adoptionColor,
+                                                size: 20),
+                                      ),
+                                    )
+                                  : Icon(tool.icon,
+                                      color: adoptionColor, size: 20),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Text(tool.name,
+                                      style: AppTypography.body(
+                                              colors.textPrimary)
+                                          .copyWith(
+                                              fontWeight: FontWeight.w700),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis),
+                                  Text(
+                                      '${tool.vendor} · ${tool.category.label}',
+                                      style: AppTypography.caption(
+                                          colors.textSecondary),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text('\$${_compact(tool.monthlySpend)}/mo',
+                                    style: AppTypography.body(
+                                            colors.textPrimary)
+                                        .copyWith(
+                                            fontWeight: FontWeight.w700)),
+                                if (!isFlatTrend)
+                                  Container(
+                                    margin: const EdgeInsets.only(top: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: (isPositiveTrend
+                                              ? colors.success
+                                              : colors.danger)
+                                          .withValues(alpha: 0.12),
+                                      borderRadius:
+                                          BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                      '${isPositiveTrend ? '↑' : '↓'} ${tool.trendPercent.abs().toStringAsFixed(0)}%',
+                                      style: AppTypography.caption(
+                                              isPositiveTrend
+                                                  ? colors.success
+                                                  : colors.danger)
+                                          .copyWith(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 10),
+                                    ),
+                                  )
+                                else
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2),
+                                    child: Text('→ 0%',
+                                        style: AppTypography.caption(
+                                            colors.textSecondary)),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _StatColumn(
+                                label: 'Active Users',
+                                value: '${tool.activeUsers}',
+                                colors: colors,
+                              ),
+                            ),
+                            Expanded(
+                              child: _StatColumn(
+                                label: 'Adoption',
+                                value:
+                                    '${(tool.adoptionRate * 100).toInt()}%',
+                                colors: colors,
+                              ),
+                            ),
+                            Expanded(
+                              child: _StatColumn(
+                                label: 'Unused Seats',
+                                value: '${tool.unusedSeats}',
+                                valueColor: tool.unusedSeats > 0
+                                    ? colors.danger
+                                    : null,
+                                colors: colors,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (tool.unusedSeats > 0) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.sm, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: colors.danger.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.savings_outlined,
+                                    size: 13, color: colors.danger),
+                                const SizedBox(width: 5),
+                                Text(
+                                  'Reclaim \$${tool.reclaimableMonthly.toStringAsFixed(0)}/mo from ${tool.unusedSeats} idle seat${tool.unusedSeats == 1 ? '' : 's'}',
+                                  style: AppTypography.caption(colors.danger)
+                                      .copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 10.5),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: AppSpacing.sm),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(999),
+                          child: TweenAnimationBuilder<double>(
+                            tween: Tween(
+                                begin: 0, end: tool.adoptionRate.clamp(0, 1)),
+                            duration: const Duration(milliseconds: 800),
+                            curve: Curves.easeOutCubic,
+                            builder: (context, value, _) =>
+                                LinearProgressIndicator(
+                              value: value,
+                              minHeight: 6,
+                              color: adoptionColor,
+                              backgroundColor: colors.border,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              Expanded(
-                child: _StatColumn(
-                  label: 'Unused Seats',
-                  value: '${tool.unusedSeats}',
-                  valueColor: tool.unusedSeats > 0 ? colors.danger : null,
-                  colors: colors,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: tool.adoptionRate.clamp(0, 1)),
-              duration: const Duration(milliseconds: 800),
-              curve: Curves.easeOutCubic,
-              builder: (context, value, _) => LinearProgressIndicator(
-                value: value,
-                minHeight: 6,
-                color: adoptionColor,
-                backgroundColor: colors.border,
-              ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

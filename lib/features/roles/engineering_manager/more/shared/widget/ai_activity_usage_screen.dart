@@ -40,7 +40,7 @@ class _MemberAdoption {
 /// callout are rebuilt local to this file with the glass / neon-accent
 /// treatment used on Notifications, Budget & Forecast, and Team Reports.
 ///
-/// TODO — IMPORTANT: `_tools` and `_members` are local mock data. Per
+
 /// the build spec, this must reuse the same "Top AI Tools" data source
 /// already built for EM Home/Teams so figures never drift out of sync.
 /// Tool cards and member rows below are wired to navigate to a detail
@@ -118,14 +118,14 @@ class _AiActivityUsageScreenState extends State<AiActivityUsageScreen>
   }
 
   void _openToolDetail(_ToolUsage tool) {
-    // TODO: replace with Navigator.push to your real Tool Detail screen.
+   
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('${tool.name} detail view coming soon.')),
     );
   }
 
   void _openMemberDetail(_MemberAdoption member) {
-    // TODO: replace with Navigator.push to your real Employee Detail screen.
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('${member.name}\'s detail view coming soon.')),
     );
@@ -314,7 +314,7 @@ class _GlassCard extends StatelessWidget {
                   color: accent,
                   boxShadow: [
                     BoxShadow(
-                      color: accent.withOpacity(0.7),
+                      color: accent.withValues(alpha: 0.7),
                       blurRadius: 8,
                       spreadRadius: 1,
                     ),
@@ -343,14 +343,14 @@ class _GlassCard extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                colors.textPrimary.withOpacity(0.05),
-                colors.textPrimary.withOpacity(0.02),
+                colors.textPrimary.withValues(alpha: 0.05),
+                colors.textPrimary.withValues(alpha: 0.02),
               ],
             ),
-            border: Border.all(color: colors.textSecondary.withOpacity(0.10)),
+            border: Border.all(color: colors.textSecondary.withValues(alpha: 0.10)),
             boxShadow: [
               BoxShadow(
-                color: accent.withOpacity(0.05),
+                color: accent.withValues(alpha: 0.05),
                 blurRadius: 24,
                 offset: const Offset(0, 10),
               ),
@@ -389,7 +389,7 @@ class _ToolUsageCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 2),
                 child: Divider(
                   height: 1,
-                  color: colors.textSecondary.withOpacity(0.08),
+                  color: colors.textSecondary.withValues(alpha: 0.08),
                 ),
               ),
           ],
@@ -435,14 +435,14 @@ class _ToolUsageRow extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    _accent.withOpacity(0.30),
-                    _accent.withOpacity(0.10)
+                    _accent.withValues(alpha: 0.30),
+                    _accent.withValues(alpha: 0.10)
                   ],
                 ),
-                border: Border.all(color: _accent.withOpacity(0.45)),
+                border: Border.all(color: _accent.withValues(alpha: 0.45)),
                 boxShadow: [
                   BoxShadow(
-                    color: _accent.withOpacity(0.25),
+                    color: _accent.withValues(alpha: 0.25),
                     blurRadius: 9,
                     spreadRadius: 0.5,
                   ),
@@ -482,7 +482,7 @@ class _ToolUsageRow extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                   decoration: BoxDecoration(
-                    color: trendColor.withOpacity(0.12),
+                    color: trendColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Row(
@@ -510,7 +510,7 @@ class _ToolUsageRow extends StatelessWidget {
             ),
             const SizedBox(width: 6),
             Icon(Icons.chevron_right_rounded,
-                size: 18, color: colors.textSecondary.withOpacity(0.6)),
+                size: 18, color: colors.textSecondary.withValues(alpha: 0.6)),
           ],
         ),
       ),
@@ -613,12 +613,12 @@ class _MemberRow extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [tier.withOpacity(0.32), tier.withOpacity(0.12)],
+                  colors: [tier.withValues(alpha: 0.32), tier.withValues(alpha: 0.12)],
                 ),
-                border: Border.all(color: tier.withOpacity(0.55)),
+                border: Border.all(color: tier.withValues(alpha: 0.55)),
                 boxShadow: [
                   BoxShadow(
-                    color: tier.withOpacity(0.3),
+                    color: tier.withValues(alpha: 0.3),
                     blurRadius: 8,
                     spreadRadius: 0.5,
                   ),
@@ -648,7 +648,7 @@ class _MemberRow extends StatelessWidget {
                     borderRadius: BorderRadius.circular(3),
                     child: Container(
                       height: 4,
-                      color: colors.textSecondary.withOpacity(0.08),
+                      color: colors.textSecondary.withValues(alpha: 0.08),
                       child: FractionallySizedBox(
                         alignment: Alignment.centerLeft,
                         widthFactor: (member.adoptionPercent / 100).clamp(0, 1),
@@ -656,7 +656,7 @@ class _MemberRow extends StatelessWidget {
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(3),
                             gradient: LinearGradient(
-                              colors: [tier, tier.withOpacity(0.6)],
+                              colors: [tier, tier.withValues(alpha: 0.6)],
                             ),
                           ),
                         ),
@@ -700,14 +700,14 @@ class _UnderusedLicenseCallout extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            colors.warning.withOpacity(0.14),
-            colors.warning.withOpacity(0.04),
+            colors.warning.withValues(alpha: 0.14),
+            colors.warning.withValues(alpha: 0.04),
           ],
         ),
-        border: Border.all(color: colors.warning.withOpacity(0.3)),
+        border: Border.all(color: colors.warning.withValues(alpha: 0.3)),
         boxShadow: [
           BoxShadow(
-            color: colors.warning.withOpacity(0.10),
+            color: colors.warning.withValues(alpha: 0.10),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -724,10 +724,10 @@ class _UnderusedLicenseCallout extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: colors.warning.withOpacity(0.18),
+                  color: colors.warning.withValues(alpha: 0.18),
                   boxShadow: [
                     BoxShadow(
-                      color: colors.warning.withOpacity(0.4),
+                      color: colors.warning.withValues(alpha: 0.4),
                       blurRadius: 10,
                       spreadRadius: 0.5,
                     ),
@@ -757,7 +757,7 @@ class _UnderusedLicenseCallout extends StatelessWidget {
                     height: 4,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: colors.warning.withOpacity(0.7),
+                      color: colors.warning.withValues(alpha: 0.7),
                     ),
                   ),
                   const SizedBox(width: 8),

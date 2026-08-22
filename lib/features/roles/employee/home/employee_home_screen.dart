@@ -120,7 +120,7 @@ class _HomeHeader extends StatelessWidget {
       children: [
         CircleAvatar(
           radius: 20,
-          backgroundColor: context.primaryColor.withOpacity(0.12),
+          backgroundColor: context.primaryColor.withValues(alpha: 0.12),
           child: Text(
             state.employeeInitials,
             style: appFontStyle(
@@ -215,7 +215,7 @@ class _AttendanceCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: context.primaryColor.withOpacity(0.1),
+        color: context.primaryColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -254,7 +254,7 @@ class _AttendanceCard extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: context.primaryColor,
               foregroundColor: Colors.white,
-              disabledBackgroundColor: context.primaryColor.withOpacity(0.5),
+              disabledBackgroundColor: context.primaryColor.withValues(alpha: 0.5),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -383,7 +383,7 @@ class _LeaveBalanceCard extends StatelessWidget {
           ),
           OutlinedButton(
             onPressed: () {
-              // TODO: navigate to Apply Leave flow.
+             
             },
             style: OutlinedButton.styleFrom(
               side: BorderSide(color: context.borderColor),

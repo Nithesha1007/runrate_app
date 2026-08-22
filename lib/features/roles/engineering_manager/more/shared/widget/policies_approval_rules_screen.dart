@@ -40,11 +40,6 @@ extension on PolicyStatus {
         PolicyStatus.restricted => colors.danger,
       };
 
-  IconData get icon => switch (this) {
-        PolicyStatus.active => Icons.check_circle_rounded,
-        PolicyStatus.warning => Icons.error_rounded,
-        PolicyStatus.restricted => Icons.block_rounded,
-      };
 }
 
 enum _PolicyActionType { contactAdmin, requestException }
@@ -133,7 +128,7 @@ class _PoliciesApprovalRulesScreenState
   Future<void> _load() async {
     setState(() => _loadState = _LoadState.loading);
     try {
-      // TODO: replace with the real policy-service fetch. The short delay
+     
       // here just keeps the skeleton state visible briefly so it isn't
       // imperceptible on fast connections.
       await Future.delayed(const Duration(milliseconds: 450));
@@ -150,8 +145,8 @@ class _PoliciesApprovalRulesScreenState
     }
   }
 
-  List<_Policy> _buildPolicies() => [
-        _Policy(
+List<_Policy> _buildPolicies() => const [
+      _Policy(
           icon: Icons.smart_toy_outlined,
           title: 'AI Tool Usage Policy',
           description:
@@ -165,7 +160,7 @@ class _PoliciesApprovalRulesScreenState
               'Only vendor-approved AI tools may be used, and no proprietary '
               'source, customer data, or credentials may be shared with them.',
           actionType: _PolicyActionType.contactAdmin,
-          details: const [
+          details:  [
             _PolicyDetail('Approved Tools',
                 'Claude, GitHub Copilot, ChatGPT Enterprise — full list in the Admin console'),
             _PolicyDetail('Data Handling',
@@ -192,7 +187,7 @@ class _PoliciesApprovalRulesScreenState
               'Purchases above ₹10,000/mo require Manager + Finance approval, '
               'and above ₹50,000/mo require Executive approval.',
           actionType: _PolicyActionType.requestException,
-          details: const [
+          details:  [
             _PolicyDetail('Manager approval limit', 'Up to ₹10,000 / month'),
             _PolicyDetail(
                 'Finance approval threshold', '₹10,000 – ₹50,000 / month'),
@@ -221,7 +216,7 @@ class _PoliciesApprovalRulesScreenState
               'All software purchases must go through the procurement request '
               'form with security and finance review before approval.',
           actionType: _PolicyActionType.requestException,
-          details: const [
+          details:  [
             _PolicyDetail('Purchase request requirement',
                 'All software purchases must go through the procurement request form'),
             _PolicyDetail('Vendor approval',

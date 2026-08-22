@@ -64,7 +64,7 @@ class OrgAdminMoreCubit extends Cubit<OrgAdminMoreState> {
   Future<void> logOut() async {
     emit(state.copyWith(isLoggingOut: true));
     await Future.delayed(const Duration(milliseconds: 600));
-    // TODO: clear session/auth state and navigate to the sign-in flow.
+   
     emit(state.copyWith(isLoggingOut: false));
   }
 

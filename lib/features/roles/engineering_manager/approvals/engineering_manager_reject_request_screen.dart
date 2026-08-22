@@ -126,7 +126,7 @@ class _RejectRequestScreenState extends State<RejectRequestScreen> {
                           ),
                           decoration: BoxDecoration(
                             color: priorityColor(context, request.priority)
-                                .withOpacity(0.1),
+                                .withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Row(
@@ -303,7 +303,7 @@ class _RejectRequestScreenState extends State<RejectRequestScreen> {
                       onPressed: _isSubmitting ? null : _submitRejection,
                       style: FilledButton.styleFrom(
                         backgroundColor: colors.danger,
-                        disabledBackgroundColor: colors.danger.withOpacity(0.5),
+                        disabledBackgroundColor: colors.danger.withValues(alpha: 0.5),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),

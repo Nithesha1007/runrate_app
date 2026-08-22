@@ -1,5 +1,5 @@
 ﻿import 'dart:io';
-import 'dart:ui';
+
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -174,10 +174,10 @@ class _EngineeringManagerHomeViewState
               MaterialPageRoute(
                   builder: (_) => const EngineeringManagerAiScreen()),
             ),
-            child: FloatingActionButton.extended(
+            child: const FloatingActionButton.extended(
               onPressed: null,
-              icon: const Icon(Icons.auto_awesome_rounded),
-              label: const Text('AI Copilot'),
+              icon:  Icon(Icons.auto_awesome_rounded),
+              label: Text('AI Copilot'),
             ),
           );
         },
@@ -267,10 +267,10 @@ class _LoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.xl),
+    return const Padding(
+      padding:  EdgeInsets.all(AppSpacing.xl),
       child: Column(
-        children: const [
+        children: [
           _ShimmerCard(height: 210),
           SizedBox(height: AppSpacing.md),
           _ShimmerCard(height: 84),
@@ -461,40 +461,66 @@ String _statusLabelFor(_BudgetStatus status) {
 }
 
 // ---------------------------------------------------------------------------
-// BRAND BADGE — No letter-initials fallback: every tool gets a distinct icon
-// (not the real trademarked logo — a recognizable, custom glyph in that
-// brand's color) on a glowing gradient circle.
+// BRAND BADGE
+//
+// v2 — real logo images added for the tools that have a verified, official,
+// square icon-only mark on Wikimedia Commons: ChatGPT, Claude, GitHub
+// Copilot (via GitHub's Invertocat mark), and Gemini. Served through
+// Commons' Special:FilePath redirector (`?width=200`), which 302-redirects
+// to a rendered PNG thumbnail, so Image.network decodes it directly with no
+// flutter_svg dependency.
+//
+// Cursor is deliberately kept on the original gradient Material-icon badge:
+// the only Cursor mark on Commons (File:Cursor logo.svg) is a wide
+// horizontal wordmark (800×195, tagged as a "text logo"), not a square
+// icon — dropping a wordmark into a small circular badge would look
+// squashed or unreadable, so the custom bolt-on-dark badge stays as the
+// better real-world result here.
+//
+// Every logo keeps the gradient badge as its errorBuilder fallback, so a
+// failed network request never leaves a blank circle.
 // ---------------------------------------------------------------------------
 class ToolBrand {
   const ToolBrand({
     required this.icon,
     required this.colors,
+    this.logoUrl,
   });
 
   final IconData icon;
-  final List<Color> colors; // gradient, 2 stops
+  final List<Color> colors; // gradient, 2 stops — also used as fallback bg
+  final String? logoUrl;
 }
 
 const Map<String, ToolBrand> kToolBrands = {
   'Claude': ToolBrand(
     icon: Icons.auto_awesome_rounded,
     colors: [Color(0xFFD97757), Color(0xFFF2A67D)],
+    logoUrl:
+        'https://commons.wikimedia.org/wiki/Special:FilePath/Claude%20AI%20symbol.svg?width=200',
   ),
   'ChatGPT Enterprise': ToolBrand(
     icon: Icons.psychology_alt_rounded,
     colors: [Color(0xFF10A37F), Color(0xFF4FD1A5)],
+    logoUrl:
+        'https://commons.wikimedia.org/wiki/Special:FilePath/ChatGPT%20logo.svg?width=200',
   ),
   'GitHub Copilot': ToolBrand(
     icon: Icons.terminal_rounded,
     colors: [Color(0xFF24292F), Color(0xFF57606A)],
+    logoUrl:
+        'https://commons.wikimedia.org/wiki/Special:FilePath/GitHub%20Invertocat%20Logo.svg?width=200',
   ),
   'Cursor': ToolBrand(
     icon: Icons.bolt_rounded,
     colors: [Color(0xFF3B3B3B), Color(0xFF6E6E6E)],
+    // No verified square icon on Commons — see note above. Stays icon-only.
   ),
   'Gemini': ToolBrand(
     icon: Icons.diamond_rounded,
     colors: [Color(0xFF4285F4), Color(0xFF9B72CB)],
+    logoUrl:
+        'https://commons.wikimedia.org/wiki/Special:FilePath/Google%20Gemini%20icon%202025.svg?width=200',
   ),
 };
 
@@ -513,7 +539,9 @@ class _BrandBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final brand = _brandFor(name);
-    return Container(
+    final logoUrl = brand.logoUrl;
+
+    final gradientFallback = Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
@@ -532,6 +560,41 @@ class _BrandBadge extends StatelessWidget {
         ],
       ),
       child: Icon(brand.icon, color: Colors.white, size: size * 0.5),
+    );
+
+    if (logoUrl == null) return gradientFallback;
+
+    // Real logo: white circular plate (so transparent-background brand
+    // marks read cleanly regardless of theme) with a thin ring and the
+    // same soft brand-tinted shadow as the gradient badge, so both variants
+    // sit at the same visual weight in a list.
+    return Container(
+      width: size,
+      height: size,
+      padding: EdgeInsets.all(size * 0.2),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white,
+        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+        boxShadow: [
+          BoxShadow(
+            color: brand.colors.first.withValues(alpha: 0.25),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: Image.network(
+          logoUrl,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stack) => Icon(
+            brand.icon,
+            color: brand.colors.first,
+            size: size * 0.5,
+          ),
+        ),
+      ),
     );
   }
 }

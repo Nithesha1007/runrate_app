@@ -102,7 +102,7 @@ class OrgAdminHomeCubit extends Cubit<OrgAdminHomeState> {
       final data = await _fetchMockDashboard();
       emit(state.copyWith(status: OrgAdminHomeStatus.loaded, data: data));
     } catch (e) {
-      emit(OrgAdminHomeState(
+      emit(const OrgAdminHomeState(
         status: OrgAdminHomeStatus.error,
         errorMessage: 'Could not load dashboard. Pull down to try again.',
       ));

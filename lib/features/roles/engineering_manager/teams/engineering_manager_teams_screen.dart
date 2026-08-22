@@ -200,7 +200,7 @@ class _PulseDotState extends State<_PulseDot>
 // ─────────────────────────────────────────────────────────────────────────
 
 class _AmbientGlow extends StatefulWidget {
-  const _AmbientGlow({required this.child, required this.colors, this.radius = 26});
+  const _AmbientGlow({required this.child, required this.colors}) : radius = 26;
 
   final Widget child;
   final AppColorsData colors;

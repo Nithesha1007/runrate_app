@@ -19,7 +19,7 @@ import 'package:runrate/shared/widgets/staggered.dart';
 /// switch. Accent color still differentiates each section (Approvals,
 /// Budget, AI usage, Team) so scanning stays easy.
 ///
-/// TODO: still persists to local widget state only — swap `setState`
+
 /// for your settings/preferences cubit when it's ready.
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -308,7 +308,7 @@ class _Section extends StatelessWidget {
             border: Border.all(color: colors.border),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 3),
               ),
@@ -418,7 +418,7 @@ class _IconBadge extends StatelessWidget {
       height: 38,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: accent.withOpacity(0.10),
+        color: accent.withValues(alpha: 0.10),
       ),
       child: Icon(
         icon,
@@ -479,7 +479,7 @@ class _FlatToggle extends StatelessWidget {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
+                  color: Colors.black.withValues(alpha: 0.15),
                   blurRadius: 2,
                   offset: const Offset(0, 1),
                 ),

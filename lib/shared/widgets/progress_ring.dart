@@ -30,7 +30,7 @@ class ProgressRing extends StatelessWidget {
                 strokeWidth: 6,
                 color: color,
                 backgroundColor: context.appColors.border),
-            Text('\${(v * 100).toStringAsFixed(0)}%'),
+            const Text('\${(v * 100).toStringAsFixed(0)}%'),
           ],
         ),
       ),

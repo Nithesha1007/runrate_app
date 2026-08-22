@@ -66,18 +66,18 @@ class _ChatInputBarState extends State<ChatInputBar> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: context.cardColor.withOpacity(0.6),
+              color: context.cardColor.withValues(alpha: 0.6),
               borderRadius: BorderRadius.circular(AppRadius.card + 6),
               border: Border.all(
                 color: _hasText
-                    ? primary.withOpacity(0.6)
-                    : context.borderColor.withOpacity(0.8),
+                    ? primary.withValues(alpha: 0.6)
+                    : context.borderColor.withValues(alpha: 0.8),
                 width: 1.2,
               ),
               boxShadow: _hasText
                   ? [
                       BoxShadow(
-                        color: primary.withOpacity(0.25),
+                        color: primary.withValues(alpha: 0.25),
                         blurRadius: 16,
                         spreadRadius: 1,
                       ),
@@ -192,7 +192,7 @@ class _CircleIconButton extends StatelessWidget {
     final active = onTap != null;
     final bg = filled
         ? (fillColor ?? Theme.of(context).primaryColor)
-        : context.cardColor.withOpacity(0.6);
+        : context.cardColor.withValues(alpha: 0.6);
 
     return InkWell(
       onTap: onTap,
@@ -209,7 +209,7 @@ class _CircleIconButton extends StatelessWidget {
               ? [
                   BoxShadow(
                     color: (glowColor ?? Theme.of(context).primaryColor)
-                        .withOpacity(0.5),
+                        .withValues(alpha: 0.5),
                     blurRadius: 14,
                     spreadRadius: 2,
                   ),
@@ -221,7 +221,7 @@ class _CircleIconButton extends StatelessWidget {
           size: 20,
           color: filled
               ? Colors.white
-              : (active ? context.textPrimary : context.textSecondary.withOpacity(0.5)),
+              : (active ? context.textPrimary : context.textSecondary.withValues(alpha: 0.5)),
         ),
       ),
     );

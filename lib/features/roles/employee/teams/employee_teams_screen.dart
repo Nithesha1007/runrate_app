@@ -131,7 +131,7 @@ class _TeamRow extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 18,
-            backgroundColor: context.primaryColor.withOpacity(0.12),
+            backgroundColor: context.primaryColor.withValues(alpha: 0.12),
             child: Text(
               team.name.isNotEmpty ? team.name[0].toUpperCase() : '?',
               style: appFontStyle(

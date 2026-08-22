@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -19,25 +20,15 @@ import '../../../../shared/widgets/empty_state.dart';
 
 /// CEO · Teams — org-wide department view.
 ///
-/// v3: removed the top "Org health overview" KPI hero card, and
-/// stripped the department cards down to what matters at a glance —
-/// name, lead, member count, health status, and spend vs. budget.
-/// Dropped from each card: the trend arrow/percentage, the AI-tool
-/// line, and the Adoption/Budget/Productivity mini-stat row. Tapping
-/// a card still opens the full team roster (CeoTeamMembersScreen) for
-/// anyone who wants the detail that used to live inline.
-///
-/// Search, filters, sort, period selector, and the Insights section
-/// below the list are unchanged.
-///
-/// NOTE — Period selector (This Month / This Quarter / YTD): the
-/// existing repository only exposes a single current snapshot per
-/// department (no per-period historical query). Per your instruction
-/// not to fabricate fake API calls, the selector is wired into the
-/// UI and re-triggers the existing `CeoTeamsCubit.load()` so it's
-/// ready the moment a period-aware repository method exists — but it
-/// does not change the numbers shown today. Flag this to me if you'd
-/// rather the control simply not exist yet.
+/// v5: removed the solid vertical health-color accent bar from
+/// department cards (per feedback — no more colored "line" per
+/// card). Health status is now communicated via the badge icon +
+/// label and a very faint oversized watermark icon in the card
+/// background, instead of a hard color bar. The "Sort" control now
+/// opens as an anchored popup menu right at the button (via
+/// `showMenu`) instead of sliding up as a full-width bottom sheet,
+/// with an animated chevron that rotates while open. No logic
+/// changes — filtering/sorting/search/period wiring all unchanged.
 class CeoTeamsScreen extends StatelessWidget {
   const CeoTeamsScreen({super.key});
 
@@ -235,10 +226,6 @@ class _CeoTeamsViewState extends State<_CeoTeamsView> {
                       padding: const EdgeInsets.fromLTRB(
                           AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.lg),
                       sliver: SliverList.separated(
-                        // AnimatedList would need index-stable keys across
-                        // sort/filter changes; SliverList + Staggered fade
-                        // gives a smooth re-order feel without the added
-                        // state-management surface a full AnimatedList needs.
                         key: ValueKey('${_filter}_$_sort'),
                         itemCount: visible.length,
                         separatorBuilder: (_, __) =>
@@ -256,8 +243,6 @@ class _CeoTeamsViewState extends State<_CeoTeamsView> {
                         },
                       ),
                     ),
-                  // "Insights" — secondary section, below the primary
-                  // department list rather than competing with it up top.
                   if (!state.loading && state.allDepartments.isNotEmpty)
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(
@@ -308,28 +293,120 @@ class _CeoTeamsViewState extends State<_CeoTeamsView> {
 }
 
 // ---------------------------------------------------------------------------
-// Screen header
+// Screen header — glow accent line + pulsing "live" indicator (unchanged)
 // ---------------------------------------------------------------------------
-class _ScreenHeader extends StatelessWidget {
+class _ScreenHeader extends StatefulWidget {
   const _ScreenHeader({required this.colors});
   final AppColorsData colors;
 
   @override
+  State<_ScreenHeader> createState() => _ScreenHeaderState();
+}
+
+class _ScreenHeaderState extends State<_ScreenHeader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulseController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final colors = widget.colors;
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Departments', style: AppTypography.h1(colors.textPrimary)),
-              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [colors.primary, colors.secondary],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colors.primary.withValues(alpha: 0.35),
+                          blurRadius: 14,
+                          spreadRadius: -3,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.corporate_fare_rounded,
+                        color: Colors.white, size: 18),
+                  ),
+                  const SizedBox(width: 10),
+                  Text('Departments', style: AppTypography.h1(colors.textPrimary)),
+                  const SizedBox(width: 10),
+                  AnimatedBuilder(
+                    animation: _pulseController,
+                    builder: (context, _) {
+                      final t = _pulseController.value;
+                      return Container(
+                        margin: const EdgeInsets.only(top: 6),
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: colors.success,
+                          boxShadow: [
+                            BoxShadow(
+                              color: colors.success
+                                  .withValues(alpha: 0.55 - (t * 0.35)),
+                              blurRadius: 4 + (t * 8),
+                              spreadRadius: t * 2.5,
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
               Text('Org-wide team health & spend',
                   style: AppTypography.caption(colors.textSecondary)),
+              const SizedBox(height: 10),
+              Container(
+                width: 46,
+                height: 3,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(999),
+                  gradient: LinearGradient(
+                    colors: [colors.primary, colors.secondary],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: colors.primary.withValues(alpha: 0.5),
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
-        GestureDetector(
+        _ScaleOnTap(
           onTap: () => Navigator.of(context).pop(),
           child: Container(
             width: 40,
@@ -338,6 +415,13 @@ class _ScreenHeader extends StatelessWidget {
               color: colors.surfaceElevated,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: colors.border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             child: Icon(Icons.close_rounded,
                 color: colors.textSecondary, size: 20),
@@ -440,7 +524,7 @@ class _ThemedSearchFieldState extends State<_ThemedSearchField> {
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 220),
       curve: Curves.easeOut,
       height: 52,
       decoration: BoxDecoration(
@@ -453,12 +537,19 @@ class _ThemedSearchFieldState extends State<_ThemedSearchField> {
         boxShadow: _focused
             ? [
                 BoxShadow(
-                  color: colors.primary.withValues(alpha: 0.14),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+                  color: colors.primary.withValues(alpha: 0.22),
+                  blurRadius: 20,
+                  spreadRadius: -2,
+                  offset: const Offset(0, 6),
                 ),
               ]
-            : null,
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
       ),
       child: Row(
         children: [
@@ -510,7 +601,7 @@ class _ThemedSearchFieldState extends State<_ThemedSearchField> {
 }
 
 // ---------------------------------------------------------------------------
-// Currency helpers (still used by department cards & Insights section)
+// Currency helpers (unchanged)
 // ---------------------------------------------------------------------------
 final _amountFormat = NumberFormat('#,##0');
 String _formatAmount(double value) => _amountFormat.format(value);
@@ -530,46 +621,119 @@ class _PeriodSelector extends StatelessWidget {
   final ValueChanged<_Period> onSelect;
 
   static const _labels = {
-    _Period.month: 'This Month',
-    _Period.quarter: 'This Quarter',
+    _Period.month: 'Month',
+    _Period.quarter: 'Quarter',
     _Period.ytd: 'YTD',
+  };
+
+  static const _icons = {
+    _Period.month: Icons.calendar_view_day_rounded,
+    _Period.quarter: Icons.calendar_view_month_rounded,
+    _Period.ytd: Icons.insights_rounded,
   };
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: colors.surfaceElevated,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: colors.border),
-      ),
-      child: Row(
-        children: _Period.values.map((p) {
-          final isSelected = p == selected;
-          return Expanded(
-            child: _ScaleOnTap(
-              onTap: () => onSelect(p),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOut,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: isSelected ? colors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  _labels[p]!,
-                  style: AppTypography.caption(
-                          isSelected ? Colors.white : colors.textSecondary)
-                      .copyWith(fontWeight: FontWeight.w700),
-                ),
+    final index = _Period.values.indexOf(selected);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        child: Container(
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: colors.surfaceElevated.withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: colors.border),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
               ),
-            ),
-          );
-        }).toList(),
+            ],
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final segmentWidth =
+                  (constraints.maxWidth - 10) / _Period.values.length;
+              return SizedBox(
+                height: 44,
+                child: Stack(
+                  children: [
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 340),
+                      curve: Curves.easeOutCubic,
+                      left: index * segmentWidth,
+                      top: 0,
+                      bottom: 0,
+                      width: segmentWidth,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(15),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [colors.primary, colors.secondary],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: colors.primary.withValues(alpha: 0.45),
+                              blurRadius: 18,
+                              spreadRadius: -3,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: _Period.values.map((p) {
+                        final isSelected = p == selected;
+                        return Expanded(
+                          child: _ScaleOnTap(
+                            onTap: () => onSelect(p),
+                            child: AnimatedDefaultTextStyle(
+                              duration: const Duration(milliseconds: 220),
+                              style: AppTypography.caption(
+                                isSelected ? Colors.white : colors.textSecondary,
+                              ).copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.2),
+                              child: Center(
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    AnimatedScale(
+                                      duration:
+                                          const Duration(milliseconds: 220),
+                                      scale: isSelected ? 1.05 : 1.0,
+                                      child: Icon(
+                                        _icons[p],
+                                        size: 15,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : colors.textSecondary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(_labels[p]!),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -622,17 +786,33 @@ class _FilterRow extends StatelessWidget {
         itemBuilder: (context, i) {
           final (filter, label, dotColor) = chips[i];
           final isSelected = filter == selected;
+          final glow = dotColor ?? colors.primary;
           return _ScaleOnTap(
             onTap: () => onSelect(filter),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
+              duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.md, vertical: AppSpacing.sm),
               decoration: BoxDecoration(
-                color: isSelected ? colors.primary : colors.surfaceElevated,
+                gradient: isSelected
+                    ? LinearGradient(
+                        colors: [colors.primary, colors.secondary],
+                      )
+                    : null,
+                color: isSelected ? null : colors.surfaceElevated,
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(
-                    color: isSelected ? colors.primary : colors.border),
+                    color: isSelected ? Colors.transparent : colors.border),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: glow.withValues(alpha: 0.35),
+                          blurRadius: 14,
+                          spreadRadius: -2,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : null,
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -642,8 +822,16 @@ class _FilterRow extends StatelessWidget {
                       width: 7,
                       height: 7,
                       decoration: BoxDecoration(
-                        color: dotColor,
+                        color: isSelected ? Colors.white : dotColor,
                         shape: BoxShape.circle,
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: Colors.white.withValues(alpha: 0.6),
+                                  blurRadius: 4,
+                                ),
+                              ]
+                            : null,
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -665,7 +853,8 @@ class _FilterRow extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// SORT ROW (unchanged)
+// SORT ROW — v5: opens an anchored popup menu right at the button
+// instead of a full-width bottom sheet. Chevron rotates while open.
 // ---------------------------------------------------------------------------
 const Map<_SortKey, String> _kSortLabels = {
   _SortKey.health: 'Health',
@@ -673,10 +862,100 @@ const Map<_SortKey, String> _kSortLabels = {
   _SortKey.adoption: 'Adoption',
 };
 
-class _SortHeaderRow extends StatelessWidget {
+const Map<_SortKey, IconData> _kSortIcons = {
+  _SortKey.health: Icons.favorite_rounded,
+  _SortKey.spend: Icons.currency_rupee_rounded,
+  _SortKey.adoption: Icons.trending_up_rounded,
+};
+
+class _SortHeaderRow extends StatefulWidget {
   const _SortHeaderRow({required this.selected, required this.onSelect});
   final _SortKey selected;
   final ValueChanged<_SortKey> onSelect;
+
+  @override
+  State<_SortHeaderRow> createState() => _SortHeaderRowState();
+}
+
+class _SortHeaderRowState extends State<_SortHeaderRow> {
+  final GlobalKey _buttonKey = GlobalKey();
+  bool _menuOpen = false;
+
+  Future<void> _openSortMenu(BuildContext context) async {
+    final renderBox =
+        _buttonKey.currentContext?.findRenderObject() as RenderBox?;
+    final overlayBox =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (renderBox == null || overlayBox == null) return;
+
+    final colors = AppColors.of(context);
+    final topLeft = renderBox.localToGlobal(Offset.zero, ancestor: overlayBox);
+    final size = renderBox.size;
+
+    final position = RelativeRect.fromLTRB(
+      topLeft.dx,
+      topLeft.dy + size.height + 8,
+      overlayBox.size.width - (topLeft.dx + size.width),
+      0,
+    );
+
+    setState(() => _menuOpen = true);
+
+    final result = await showMenu<_SortKey>(
+      context: context,
+      position: position,
+      color: colors.surfaceElevated,
+      surfaceTintColor: Colors.transparent,
+      elevation: 10,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: colors.border),
+      ),
+      constraints: const BoxConstraints(minWidth: 190),
+      items: [
+        for (final key in _SortKey.values)
+          PopupMenuItem<_SortKey>(
+            value: key,
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: key == widget.selected
+                        ? colors.primary.withValues(alpha: 0.14)
+                        : colors.border.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    _kSortIcons[key],
+                    size: 16,
+                    color: key == widget.selected
+                        ? colors.primary
+                        : colors.textSecondary,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  _kSortLabels[key]!,
+                  style: AppTypography.body(colors.textPrimary).copyWith(
+                      fontWeight: key == widget.selected
+                          ? FontWeight.w700
+                          : FontWeight.w500),
+                ),
+                const Spacer(),
+                if (key == widget.selected)
+                  Icon(Icons.check_circle_rounded,
+                      color: colors.primary, size: 17),
+              ],
+            ),
+          ),
+      ],
+    );
+
+    if (!mounted) return;
+    setState(() => _menuOpen = false);
+    if (result != null) widget.onSelect(result);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -688,88 +967,47 @@ class _SortHeaderRow extends StatelessWidget {
               style: AppTypography.h3(colors.textPrimary)),
         ),
         _ScaleOnTap(
-          onTap: () => _showSortSheet(context, selected, onSelect),
-          child: Container(
+          onTap: () => _openSortMenu(context),
+          child: AnimatedContainer(
+            key: _buttonKey,
+            duration: const Duration(milliseconds: 180),
             padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm, vertical: 6),
+                horizontal: AppSpacing.sm, vertical: 7),
             decoration: BoxDecoration(
               color: colors.surfaceElevated,
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: colors.border),
+              border: Border.all(
+                color: _menuOpen ? colors.primary : colors.border,
+                width: _menuOpen ? 1.4 : 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: colors.primary.withValues(alpha: _menuOpen ? 0.18 : 0.08),
+                  blurRadius: _menuOpen ? 14 : 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Sort: ${_kSortLabels[selected]} ▾',
+                Icon(_kSortIcons[widget.selected], size: 13, color: colors.primary),
+                const SizedBox(width: 5),
+                Text('Sort: ${_kSortLabels[widget.selected]}',
                     style: AppTypography.caption(colors.textPrimary)
                         .copyWith(fontWeight: FontWeight.w600)),
                 const SizedBox(width: 4),
-                Icon(Icons.tune_rounded, size: 16, color: colors.textSecondary),
+                AnimatedRotation(
+                  turns: _menuOpen ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(Icons.keyboard_arrow_down_rounded,
+                      size: 16, color: colors.textSecondary),
+                ),
               ],
             ),
           ),
         ),
       ],
-    );
-  }
-
-  void _showSortSheet(
-      BuildContext context, _SortKey current, ValueChanged<_SortKey> onSelect) {
-    final colors = AppColors.of(context);
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: colors.surfaceElevated,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Sort by', style: AppTypography.h3(colors.textPrimary)),
-              const SizedBox(height: AppSpacing.md),
-              for (final key in _SortKey.values)
-                _ScaleOnTap(
-                  onTap: () {
-                    onSelect(key);
-                    Navigator.of(sheetContext).pop();
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: AppSpacing.sm),
-                    child: Row(
-                      children: [
-                        Icon(
-                          key == current
-                              ? Icons.radio_button_checked_rounded
-                              : Icons.radio_button_unchecked_rounded,
-                          color: key == current
-                              ? colors.primary
-                              : colors.textSecondary,
-                          size: 20,
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Text(_kSortLabels[key]!,
-                            style: AppTypography.body(colors.textPrimary)
-                                .copyWith(
-                                    fontWeight: key == current
-                                        ? FontWeight.w700
-                                        : FontWeight.w500)),
-                        const Spacer(),
-                        if (key == current)
-                          Icon(Icons.check_rounded,
-                              color: colors.primary, size: 18),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
@@ -790,8 +1028,7 @@ class _Signal {
     required this.color,
     required this.title,
     required this.detail,
-    this.impact,
-  });
+  }) : impact = null;
 }
 
 class _ExecutiveSignalsSection extends StatelessWidget {
@@ -802,7 +1039,6 @@ class _ExecutiveSignalsSection extends StatelessWidget {
     final signals = <_Signal>[];
     if (departments.isEmpty) return signals;
 
-    // Biggest spender
     final bySpend = [...departments]
       ..sort((a, b) => b.team.spend.compareTo(a.team.spend));
     final topSpender = bySpend.first;
@@ -815,7 +1051,6 @@ class _ExecutiveSignalsSection extends StatelessWidget {
           '${_compactCurrency(topSpender.team.spend)} of ${_compactCurrency(topSpender.team.monthlyBudget)} budget used this period.',
     ));
 
-    // Adoption drop / low adoption
     final lowAdoption = departments
         .where((d) => d.team.aiAdoption < 50)
         .toList()
@@ -832,7 +1067,6 @@ class _ExecutiveSignalsSection extends StatelessWidget {
       ));
     }
 
-    // Highest adoption growth proxy — trend delta from monthlyTrend
     final growers = departments.where((d) => d.team.monthlyTrend.length >= 2);
     if (growers.isNotEmpty) {
       DepartmentSummary? best;
@@ -856,7 +1090,6 @@ class _ExecutiveSignalsSection extends StatelessWidget {
       }
     }
 
-    // Over-budget departments
     final overBudget = departments
         .where((d) => d.team.budgetUsedPercent >= 90)
         .toList()
@@ -877,7 +1110,6 @@ class _ExecutiveSignalsSection extends StatelessWidget {
       ));
     }
 
-    // Tool overlap — departments sharing the same top tool
     final byTool = <String, List<DepartmentSummary>>{};
     for (final d in departments) {
       byTool.putIfAbsent(d.team.topAiTool, () => []).add(d);
@@ -909,7 +1141,13 @@ class _ExecutiveSignalsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Insights', style: AppTypography.h3(colors.textPrimary)),
+        Row(
+          children: [
+            Icon(Icons.auto_awesome_rounded, size: 16, color: colors.primary),
+            const SizedBox(width: 6),
+            Text('Insights', style: AppTypography.h3(colors.textPrimary)),
+          ],
+        ),
         const SizedBox(height: 2),
         Text('A few things worth a closer look',
             style: AppTypography.caption(colors.textSecondary)),
@@ -951,7 +1189,14 @@ class _SignalCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(signal.icon, color: signal.color),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: signal.color.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(signal.icon, color: signal.color),
+                    ),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(signal.title,
@@ -979,7 +1224,15 @@ class _SignalCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: colors.surfaceElevated,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: colors.border),
+          border: Border.all(color: signal.color.withValues(alpha: 0.28)),
+          boxShadow: [
+            BoxShadow(
+              color: signal.color.withValues(alpha: 0.12),
+              blurRadius: 16,
+              spreadRadius: -4,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -990,8 +1243,14 @@ class _SignalCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: signal.color.withValues(alpha: 0.12),
+                    color: signal.color.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: signal.color.withValues(alpha: 0.25),
+                        blurRadius: 8,
+                      ),
+                    ],
                   ),
                   child: Icon(signal.icon, color: signal.color, size: 16),
                 ),
@@ -1069,6 +1328,14 @@ class _DeptAvatar extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [color, color.withValues(alpha: 0.7)],
         ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.4),
+            blurRadius: 14,
+            spreadRadius: -3,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       alignment: Alignment.center,
       child: Text(
@@ -1084,16 +1351,10 @@ class _DeptAvatar extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// DEPARTMENT CARD — v3: stripped to essentials.
-//
-// Kept: avatar, name, lead + member count, health badge, spend vs.
-// budget with a slim progress bar, and a "View team roster" footer
-// that mirrors the card's own tap target.
-//
-// Removed: the trend arrow/percentage, the AI-tool line, and the
-// Adoption/Budget/Productivity mini-stat row — all per your last
-// message. Those numbers are still visible in full on the team
-// roster screen this card opens.
+// DEPARTMENT CARD — v5: the solid vertical health-color accent bar has
+// been removed entirely. Health is now communicated through (1) an
+// icon + label badge, and (2) a very faint oversized watermark icon
+// in the card's background corner — no hard color "line" on any card.
 // ---------------------------------------------------------------------------
 class _DepartmentCard extends StatelessWidget {
   final DepartmentSummary summary;
@@ -1104,6 +1365,12 @@ class _DepartmentCard extends StatelessWidget {
     DepartmentHealth.onTrack: 'On Track',
     DepartmentHealth.atRisk: 'At Risk',
     DepartmentHealth.critical: 'Critical',
+  };
+
+  static const _healthIcons = {
+    DepartmentHealth.onTrack: Icons.check_circle_rounded,
+    DepartmentHealth.atRisk: Icons.error_outline_rounded,
+    DepartmentHealth.critical: Icons.dangerous_rounded,
   };
 
   Color _healthColor(AppColorsData colors, DepartmentHealth health) {
@@ -1122,6 +1389,7 @@ class _DepartmentCard extends StatelessWidget {
     final colors = AppColors.of(context);
     final team = summary.team;
     final healthColor = _healthColor(colors, summary.health);
+    final healthIcon = _healthIcons[summary.health]!;
     final budgetPct = (team.budgetUsedPercent / 100).clamp(0.0, 1.0);
     final budgetBarColor = team.budgetUsedPercent >= 100
         ? colors.danger
@@ -1131,116 +1399,168 @@ class _DepartmentCard extends StatelessWidget {
 
     return _ScaleOnTap(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: colors.surfaceElevated,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: colors.border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // --- Identity: department + lead + health -------------------
-            Row(
-              children: [
-                _DeptAvatar(name: team.name),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        team.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.body(colors.textPrimary)
-                            .copyWith(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Led by ${summary.leadName} · ${team.memberCount} members',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.caption(colors.textSecondary),
-                      ),
-                    ],
-                  ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          decoration: BoxDecoration(
+            color: colors.surfaceElevated,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: colors.border),
+            boxShadow: [
+              BoxShadow(
+                color: healthColor.withValues(alpha: 0.08),
+                blurRadius: 16,
+                spreadRadius: -4,
+                offset: const Offset(0, 6),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              // Faint oversized watermark icon — a subtle nod to
+              // status without a hard color bar/line on the card.
+              Positioned(
+                right: -14,
+                top: -14,
+                child: Icon(
+                  healthIcon,
+                  size: 96,
+                  color: healthColor.withValues(alpha: 0.05),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: healthColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    _healthLabels[summary.health]!,
-                    style: AppTypography.caption(healthColor)
-                        .copyWith(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.md),
-            // --- Spend vs. budget, with a slim progress indicator -------
-            Row(
-              children: [
-                Icon(Icons.currency_rupee_rounded,
-                    size: 15, color: colors.textPrimary),
-                const SizedBox(width: 2),
-                Text(
-                  '${_formatAmount(team.spend)} / ${_formatAmount(team.monthlyBudget)}',
-                  style: AppTypography.body(colors.textPrimary)
-                      .copyWith(fontWeight: FontWeight.w700),
-                ),
-                const Spacer(),
-                Text(
-                  '${team.budgetUsedPercent.toStringAsFixed(0)}% used',
-                  style: AppTypography.caption(colors.textSecondary),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: SizedBox(
-                height: 4,
-                child: Stack(
+              ),
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(color: colors.border),
-                    FractionallySizedBox(
-                      widthFactor: budgetPct,
-                      child: Container(color: budgetBarColor),
+                    // --- Identity: department + lead + health ---
+                    Row(
+                      children: [
+                        _DeptAvatar(name: team.name),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                team.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.body(colors.textPrimary)
+                                    .copyWith(fontWeight: FontWeight.w700),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Led by ${summary.leadName} · ${team.memberCount} members',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.caption(
+                                    colors.textSecondary),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: healthColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                                color: healthColor.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(healthIcon, size: 12, color: healthColor),
+                              const SizedBox(width: 4),
+                              Text(
+                                _healthLabels[summary.health]!,
+                                style: AppTypography.caption(healthColor)
+                                    .copyWith(fontWeight: FontWeight.w700),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    // --- Spend vs. budget ---
+                    Row(
+                      children: [
+                        Icon(Icons.currency_rupee_rounded,
+                            size: 15, color: colors.textPrimary),
+                        const SizedBox(width: 2),
+                        Text(
+                          '${_formatAmount(team.spend)} / ${_formatAmount(team.monthlyBudget)}',
+                          style: AppTypography.body(colors.textPrimary)
+                              .copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '${team.budgetUsedPercent.toStringAsFixed(0)}% used',
+                          style: AppTypography.caption(colors.textSecondary),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 7),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: SizedBox(
+                        height: 5,
+                        child: Stack(
+                          children: [
+                            Container(color: colors.border),
+                            FractionallySizedBox(
+                              widthFactor: budgetPct,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      budgetBarColor,
+                                      budgetBarColor.withValues(alpha: 0.7),
+                                    ],
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: budgetBarColor
+                                          .withValues(alpha: 0.5),
+                                      blurRadius: 6,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Divider(color: colors.border, height: 1),
+                    const SizedBox(height: AppSpacing.sm),
+                    // --- Footer ---
+                    Row(
+                      children: [
+                        Text(
+                          'View team roster',
+                          style: AppTypography.caption(colors.primary)
+                              .copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const Spacer(),
+                        Icon(Icons.chevron_right_rounded,
+                            color: colors.primary, size: 18),
+                      ],
                     ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Divider(color: colors.border, height: 1),
-            const SizedBox(height: AppSpacing.sm),
-            // --- Footer: clear affordance to open the full roster -------
-            Row(
-              children: [
-                Text(
-                  'View team roster',
-                  style: AppTypography.caption(colors.primary)
-                      .copyWith(fontWeight: FontWeight.w700),
-                ),
-                const Spacer(),
-                Icon(Icons.chevron_right_rounded,
-                    color: colors.primary, size: 18),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
