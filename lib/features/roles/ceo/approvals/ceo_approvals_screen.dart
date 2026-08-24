@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:runrate/features/roles/ceo/approvals/ceo_approval_detail_screen.dart';
+import 'package:runrate/features/roles/ceo/approvals/request_info_screen.dart';
 import '../data/ceo_mock_repository.dart';
+
 
 import 'ceo_approvals_cubit.dart';
 import 'ceo_approvals_state.dart';
+
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_colors_data.dart';
@@ -30,15 +34,19 @@ import '../../../../shared/widgets/toast.dart';
 ///
 /// v2 — the shared `SegmentedToggle` for Pending/History is replaced with
 /// an in-file `_SegmentedTabs` control (icons, live counts, gradient
-/// active state) for full design control, and each pending card now has a
-/// "Why this needs your approval" row that opens a detail sheet explaining
-/// the approval rationale, with Approve/Reject available right there too.
+/// active state) for full design control.
 ///
-/// v3 — "Request Info" no longer opens the shared reject-style bottom
-/// sheet. It now pushes a dedicated `_RequestInfoScreen`: a full page that
-/// shows the same "why this needs your approval" context (amount,
-/// requester, category, rationale) plus a note field, so the CEO can see
-/// the full picture before deciding what to ask the requester for.
+/// v3 — "Request Info" pushes a dedicated `CeoRequestInfoScreen` (now its
+/// own shared file): a full page that shows the same "why this needs your
+/// approval" context (amount, requester, category, rationale) plus a note
+/// field, so the CEO can see the full picture before deciding what to ask
+/// the requester for.
+///
+/// v4 — "Why this needs your approval" no longer opens a bottom sheet.
+/// Tapping it (now labeled "View details") pushes `CeoApprovalDetailsScreen`
+/// — a full "view details" page mirroring the Engineering Manager
+/// approvals pattern — with Approve/Reject/Request Info reachable from
+/// there too.
 class CeoApprovalsScreen extends StatelessWidget {
   const CeoApprovalsScreen({super.key});
 
@@ -232,7 +240,7 @@ class _CeoApprovalsViewState extends State<_CeoApprovalsView> {
                         onRequestInfo: () async {
                           final message = await Navigator.of(context)
                               .push<String>(MaterialPageRoute(
-                            builder: (_) => _RequestInfoScreen(
+                            builder: (_) => CeoRequestInfoScreen(
                               approval: approval,
                               priority: state.priorityOf(approval),
                             ),
@@ -244,6 +252,18 @@ class _CeoApprovalsViewState extends State<_CeoApprovalsView> {
                             showAppToast(context,
                                 'Requested more info from ${approval.requesterName}');
                           }
+                        },
+                        onViewDetails: () {
+                          final cubit = context.read<CeoApprovalsCubit>();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => BlocProvider.value(
+                                value: cubit,
+                                child: CeoApprovalDetailsScreen(
+                                    approvalId: approval.id),
+                              ),
+                            ),
+                          );
                         },
                       ),
               ),
@@ -376,33 +396,6 @@ String _compact(double value) {
   if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
   if (value >= 1000) return '${(value / 1000).toStringAsFixed(0)}K';
   return _formatAmount(value);
-}
-
-/// Shared "why this needs your approval" rationale, derived from the
-/// fields `ApprovalModel` actually carries (category, amount, computed
-/// priority, requester) rather than a dedicated justification field, since
-/// the model doesn't expose one today. Used by both the quick detail sheet
-/// and the full Request Info screen so the reasoning stays consistent.
-List<String> _approvalReasons(ApprovalModel approval, bool isUrgent) {
-  final reasons = <String>[];
-  if (isUrgent) {
-    reasons.add(
-        'Flagged as urgent priority — needs a faster turnaround than routine requests.');
-  }
-  if (approval.amount >= 50000) {
-    reasons.add(
-        'Amount of ₹${_formatAmount(approval.amount)} is above standard department sign-off limits.');
-  } else {
-    reasons.add(
-        'Amount of ₹${_formatAmount(approval.amount)} falls under strategic spend that routes to the CEO.');
-  }
-  if (approval.category.isNotEmpty) {
-    reasons.add(
-        'Category "${approval.category}" is on the list of spend types that require executive review.');
-  }
-  reasons.add(
-      '${approval.requesterName} does not hold sign-off authority for this amount, so it escalates to you.');
-  return reasons;
 }
 
 // ---------------------------------------------------------------------------
@@ -785,8 +778,8 @@ class _PriorityFilterRow extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // APPROVAL LIST CARD — replaces the broken shared `ApprovalCard`. Plain,
 // correctly interpolated text, icon-based currency (no tofu glyph), a
-// priority ribbon, a "Why this needs your approval" row that opens the
-// detail sheet, and Approve / Reject / Request Info actions.
+// priority ribbon, a "View details" row that pushes the full details
+// screen, and Approve / Reject / Request Info actions.
 // ---------------------------------------------------------------------------
 class _ApprovalListCard extends StatelessWidget {
   const _ApprovalListCard({
@@ -795,6 +788,7 @@ class _ApprovalListCard extends StatelessWidget {
     required this.onApprove,
     required this.onReject,
     required this.onRequestInfo,
+    required this.onViewDetails,
   });
 
   final ApprovalModel approval;
@@ -802,6 +796,7 @@ class _ApprovalListCard extends StatelessWidget {
   final VoidCallback onApprove;
   final VoidCallback onReject;
   final VoidCallback onRequestInfo;
+  final VoidCallback onViewDetails;
 
   bool get _isUrgent =>
       priority == ApprovalPriority.high || priority == ApprovalPriority.critical;
@@ -898,13 +893,7 @@ class _ApprovalListCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           _ScaleOnTap(
-            onTap: () => _showApprovalDetailsSheet(
-              context,
-              approval: approval,
-              priority: priority,
-              onApprove: onApprove,
-              onReject: onReject,
-            ),
+            onTap: onViewDetails,
             child: Container(
               padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.sm, vertical: AppSpacing.xs + 2),
@@ -918,7 +907,7 @@ class _ApprovalListCard extends StatelessWidget {
                       size: 16, color: colors.primary),
                   const SizedBox(width: 6),
                   Expanded(
-                    child: Text('Why this needs your approval',
+                    child: Text('View details',
                         style: AppTypography.caption(colors.textPrimary)
                             .copyWith(fontWeight: FontWeight.w600)),
                   ),
@@ -1007,558 +996,6 @@ class _ApprovalListCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// APPROVAL DETAILS SHEET — "Why this needs your approval". Shows the full
-// request (title, category, priority, requester, amount) plus a rationale
-// list, with Approve / Reject reachable right from the sheet.
-// ---------------------------------------------------------------------------
-void _showApprovalDetailsSheet(
-  BuildContext context, {
-  required ApprovalModel approval,
-  required ApprovalPriority priority,
-  required VoidCallback onApprove,
-  required VoidCallback onReject,
-}) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (_) => _ApprovalDetailsSheet(
-      approval: approval,
-      priority: priority,
-      onApprove: onApprove,
-      onReject: onReject,
-    ),
-  );
-}
-
-class _ApprovalDetailsSheet extends StatelessWidget {
-  const _ApprovalDetailsSheet({
-    required this.approval,
-    required this.priority,
-    required this.onApprove,
-    required this.onReject,
-  });
-
-  final ApprovalModel approval;
-  final ApprovalPriority priority;
-  final VoidCallback onApprove;
-  final VoidCallback onReject;
-
-  bool get _isUrgent =>
-      priority == ApprovalPriority.high || priority == ApprovalPriority.critical;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    final priorityColor = _isUrgent ? colors.danger : colors.info;
-    final reasons = _approvalReasons(approval, _isUrgent);
-
-    return DraggableScrollableSheet(
-      initialChildSize: 0.62,
-      minChildSize: 0.4,
-      maxChildSize: 0.92,
-      expand: false,
-      builder: (context, scrollController) => Container(
-        decoration: BoxDecoration(
-          color: colors.background,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          children: [
-            const SizedBox(height: AppSpacing.sm),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: colors.border,
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                controller: scrollController,
-                padding: const EdgeInsets.fromLTRB(AppSpacing.xl,
-                    AppSpacing.lg, AppSpacing.xl, AppSpacing.xl),
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.sm, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: priorityColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                  color: priorityColor, shape: BoxShape.circle),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(_isUrgent ? 'URGENT' : 'NORMAL',
-                                style: AppTypography.caption(priorityColor)
-                                    .copyWith(
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 0.4)),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      if (approval.category.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.sm, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: colors.surfaceElevated,
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: colors.border),
-                          ),
-                          child: Text(approval.category,
-                              style: AppTypography.caption(colors.textSecondary)),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(approval.title, style: AppTypography.h3(colors.textPrimary)),
-                  const SizedBox(height: AppSpacing.sm),
-                  Row(
-                    children: [
-                      Icon(Icons.person_outline_rounded,
-                          size: 16, color: colors.textSecondary),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text('Requested by ${approval.requesterName}',
-                            style: AppTypography.body(colors.textSecondary)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Container(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                          colors: [colors.primary, colors.secondary]),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        const Icon(Icons.currency_rupee_rounded,
-                            color: Colors.white, size: 26),
-                        Text(_formatAmount(approval.amount),
-                            style: AppTypography.display(Colors.white)),
-                        const SizedBox(width: 8),
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Text('requested',
-                              style: AppTypography.caption(
-                                  Colors.white.withValues(alpha: 0.85))),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  Text('Why this needs your approval',
-                      style: AppTypography.h3(colors.textPrimary)),
-                  const SizedBox(height: AppSpacing.sm),
-                  ...reasons.map((reason) => Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              margin: const EdgeInsets.only(top: 6),
-                              width: 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                  color: colors.primary, shape: BoxShape.circle),
-                            ),
-                            const SizedBox(width: AppSpacing.sm),
-                            Expanded(
-                              child: Text(reason,
-                                  style: AppTypography.body(colors.textSecondary)),
-                            ),
-                          ],
-                        ),
-                      )),
-                  const SizedBox(height: AppSpacing.xl),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            onReject();
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: colors.danger,
-                            side: BorderSide(
-                                color: colors.danger.withValues(alpha: 0.4)),
-                            padding: const EdgeInsets.symmetric(
-                                vertical: AppSpacing.md),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                          ),
-                          child: const Text('Reject'),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        flex: 2,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            onApprove();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: colors.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                                vertical: AppSpacing.md),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                          ),
-                          child: const Text('Approve'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// REQUEST INFO SCREEN — full page pushed when the CEO taps "Request Info"
-// on a pending card. Shows the same context as the "why this needs your
-// approval" sheet (priority, category, requester, amount, rationale) so
-// the CEO has the full picture, then a note field for what to ask the
-// requester, and a "Send Request" button that pops this screen with the
-// typed message so the caller can hand it to the cubit.
-// ---------------------------------------------------------------------------
-class _RequestInfoScreen extends StatefulWidget {
-  const _RequestInfoScreen({required this.approval, required this.priority});
-
-  final ApprovalModel approval;
-  final ApprovalPriority priority;
-
-  @override
-  State<_RequestInfoScreen> createState() => _RequestInfoScreenState();
-}
-
-class _RequestInfoScreenState extends State<_RequestInfoScreen> {
-  final _controller = TextEditingController();
-  static const _suggestions = [
-    'Need a vendor quote breakdown',
-    'Please share the ROI justification',
-    'Confirm if this was budgeted',
-    'Need sign-off from department head',
-  ];
-
-  bool get _isUrgent =>
-      widget.priority == ApprovalPriority.high ||
-      widget.priority == ApprovalPriority.critical;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _applySuggestion(String text) {
-    setState(() {
-      _controller.text = text;
-      _controller.selection =
-          TextSelection.collapsed(offset: _controller.text.length);
-    });
-  }
-
-  void _submit() {
-    final message = _controller.text.trim();
-    if (message.isEmpty) return;
-    Navigator.of(context).pop(message);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    final approval = widget.approval;
-    final priorityColor = _isUrgent ? colors.danger : colors.info;
-    final reasons = _approvalReasons(approval, _isUrgent);
-
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        backgroundColor: colors.background,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: colors.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text('Request info', style: AppTypography.h3(colors.textPrimary)),
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.xl, AppSpacing.sm, AppSpacing.xl, AppSpacing.xl),
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.sm, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: priorityColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                  color: priorityColor, shape: BoxShape.circle),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(_isUrgent ? 'URGENT' : 'NORMAL',
-                                style: AppTypography.caption(priorityColor)
-                                    .copyWith(
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 0.4)),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      if (approval.category.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.sm, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: colors.surfaceElevated,
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: colors.border),
-                          ),
-                          child: Text(approval.category,
-                              style: AppTypography.caption(colors.textSecondary)),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(approval.title, style: AppTypography.h2(colors.textPrimary)),
-                  const SizedBox(height: AppSpacing.xs),
-                  Row(
-                    children: [
-                      Icon(Icons.person_outline_rounded,
-                          size: 16, color: colors.textSecondary),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text('Requested by ${approval.requesterName}',
-                            style: AppTypography.body(colors.textSecondary)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Container(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [colors.primary, colors.secondary],
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: colors.primary.withValues(alpha: 0.22),
-                          blurRadius: 18,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        const Icon(Icons.currency_rupee_rounded,
-                            color: Colors.white, size: 26),
-                        Text(_formatAmount(approval.amount),
-                            style: AppTypography.display(Colors.white)),
-                        const SizedBox(width: 8),
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Text('requested',
-                              style: AppTypography.caption(
-                                  Colors.white.withValues(alpha: 0.85))),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  Row(
-                    children: [
-                      Icon(Icons.info_outline_rounded,
-                          size: 18, color: colors.primary),
-                      const SizedBox(width: 6),
-                      Text('Why this needs your approval',
-                          style: AppTypography.h3(colors.textPrimary)),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Container(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    decoration: BoxDecoration(
-                      color: colors.surfaceElevated,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: colors.border),
-                    ),
-                    child: Column(
-                      children: [
-                        for (var i = 0; i < reasons.length; i++) ...[
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                margin: const EdgeInsets.only(top: 6),
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                    color: colors.primary,
-                                    shape: BoxShape.circle),
-                              ),
-                              const SizedBox(width: AppSpacing.sm),
-                              Expanded(
-                                child: Text(reasons[i],
-                                    style: AppTypography.body(
-                                        colors.textSecondary)),
-                              ),
-                            ],
-                          ),
-                          if (i != reasons.length - 1)
-                            const SizedBox(height: AppSpacing.sm),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  Text('What do you need from ${approval.requesterName}?',
-                      style: AppTypography.h3(colors.textPrimary)),
-                  const SizedBox(height: AppSpacing.sm),
-                  Wrap(
-                    spacing: AppSpacing.sm,
-                    runSpacing: AppSpacing.sm,
-                    children: _suggestions
-                        .map((s) => _ScaleOnTap(
-                              onTap: () => _applySuggestion(s),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: AppSpacing.md,
-                                    vertical: AppSpacing.sm),
-                                decoration: BoxDecoration(
-                                  color: colors.surfaceElevated,
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(color: colors.border),
-                                ),
-                                child: Text(s,
-                                    style: AppTypography.caption(
-                                            colors.textPrimary)
-                                        .copyWith(fontWeight: FontWeight.w600)),
-                              ),
-                            ))
-                        .toList(),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: colors.surfaceElevated,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: colors.border),
-                    ),
-                    padding: const EdgeInsets.all(AppSpacing.sm),
-                    child: TextField(
-                      controller: _controller,
-                      maxLines: 5,
-                      minLines: 4,
-                      style: AppTypography.body(colors.textPrimary),
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        hintText:
-                            'Type what you need before deciding on this request…',
-                        hintStyle: AppTypography.body(colors.textSecondary),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.lg),
-              decoration: BoxDecoration(
-                color: colors.background,
-                border: Border(top: BorderSide(color: colors.border)),
-              ),
-              child: SafeArea(
-                top: false,
-                child: ValueListenableBuilder<TextEditingValue>(
-                  valueListenable: _controller,
-                  builder: (context, value, _) {
-                    final enabled = value.text.trim().isNotEmpty;
-                    return _ScaleOnTap(
-                      onTap: enabled ? _submit : () {},
-                      child: Container(
-                        height: 48,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          gradient: enabled
-                              ? LinearGradient(
-                                  colors: [colors.primary, colors.secondary])
-                              : null,
-                          color: enabled ? null : colors.border,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.send_rounded,
-                                size: 18,
-                                color: enabled
-                                    ? Colors.white
-                                    : colors.textSecondary),
-                            const SizedBox(width: 8),
-                            Text('Send Request',
-                                style: AppTypography.body(enabled
-                                        ? Colors.white
-                                        : colors.textSecondary)
-                                    .copyWith(fontWeight: FontWeight.w700)),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

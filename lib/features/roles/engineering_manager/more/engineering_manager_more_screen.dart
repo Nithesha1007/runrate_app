@@ -10,14 +10,15 @@ import 'package:runrate/core/theme/theme_cubit.dart';
 import 'package:runrate/features/roles/ceo/more/profile_cubit.dart';
 import 'package:runrate/features/roles/engineering_manager/more/shared/widget/about_runrate_screen.dart';
 import 'package:runrate/features/roles/engineering_manager/more/shared/widget/ai_activity_usage_screen.dart';
+import 'package:runrate/features/roles/engineering_manager/more/shared/widget/approval_preferences_screen.dart';
 import 'package:runrate/features/roles/engineering_manager/more/shared/widget/budget_forecast_screen.dart';
+import 'package:runrate/features/roles/engineering_manager/more/shared/widget/help_support.dart';
 import 'package:runrate/features/roles/engineering_manager/more/shared/widget/integrations_screen.dart';
 import 'package:runrate/features/roles/engineering_manager/more/shared/widget/notifications_screen.dart';
 import 'package:runrate/features/roles/engineering_manager/more/shared/widget/policies_approval_rules_screen.dart';
 import 'package:runrate/features/roles/engineering_manager/more/shared/widget/profile_account_screen.dart';
 import 'package:runrate/features/roles/engineering_manager/more/shared/widget/security_privacy_screen.dart';
 import 'package:runrate/features/roles/engineering_manager/more/shared/widget/team_reports_screen.dart';
-
 
 import 'package:runrate/shared/widgets/grouped_card.dart';
 import 'package:runrate/shared/widgets/scale_on_tap.dart';
@@ -129,7 +130,6 @@ class _EngineeringManagerMoreScreenState
     final picked = await picker.pickImage(source: source, imageQuality: 85);
     if (picked == null || !context.mounted) return;
 
-   
     // the resulting remote URL here instead of the local file path.
     await context.read<ProfileCubit>().updateProfile(avatarUrl: picked.path);
   }
@@ -161,7 +161,6 @@ class _EngineeringManagerMoreScreenState
     );
 
     if (confirmed == true && context.mounted) {
-      
       // repository before navigating.
       await context.read<ProfileCubit>().clear();
       if (context.mounted) {
@@ -353,7 +352,7 @@ class _EngineeringManagerMoreScreenState
           iconColor: colors.info,
           title: 'Integrations',
           subtitle: 'AI tools, dev, PM and communication apps',
-          onTap: () => _push(context, const ApprovalPreferencesScreen()),
+          onTap: () => _push(context, const IntegrationsScreen()),
         ),
         SettingsRow(
           icon: Icons.rule_outlined,
@@ -376,10 +375,10 @@ class _EngineeringManagerMoreScreenState
           iconColor: colors.primary,
           title: 'Help & Support',
           subtitle: 'FAQs, contact support, report a problem',
-          // onTap: () => _push(
-          //   context,
-          //   HelpSupportScreen(config: HelpSupportConfig.engineeringManager()),
-          // ),
+          onTap: () => _push(
+            context,
+            const EmHelpSupportScreen(),
+          ),
         ),
       ],
     );

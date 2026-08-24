@@ -163,25 +163,6 @@ class _EngineeringManagerHomeViewState
           },
         ),
       ),
-      floatingActionButton:
-          BlocBuilder<EngineeringManagerHomeCubit, EngineeringManagerHomeState>(
-        builder: (context, state) {
-          if (state is! EngineeringManagerHomeLoaded) {
-            return const SizedBox.shrink();
-          }
-          return _ScaleOnTap(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                  builder: (_) => const EngineeringManagerAiScreen()),
-            ),
-            child: const FloatingActionButton.extended(
-              onPressed: null,
-              icon:  Icon(Icons.auto_awesome_rounded),
-              label: Text('AI Copilot'),
-            ),
-          );
-        },
-      ),
     );
   }
 
@@ -913,9 +894,16 @@ class _SectionHeader extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// QUICK ACTIONS — compact row tiles: icon + FULL title side by side, title
-// wraps to 2 lines only if it needs to (no ellipsis truncation), and the
-// tile height tracks the content instead of forcing a tall square.
+// QUICK ACTIONS
+//
+// v2 — "Ask AI" tile removed from this grid (it's a duplicate entry point:
+// the AI copilot is reached from the bottom-nav AI tab). With 3 tiles left
+// (Team Report, Budget Details, Compare AI Usage) the plain grid is
+// replaced with the same asymmetric "advanced" layout used on the CEO
+// home screen: the first action renders as a wide featured card with a
+// gradient wash, a glowing icon badge, a short description line and a
+// trailing arrow chip; the remaining two sit in a tighter two-up row below
+// with the same gradient-badge treatment at a smaller scale.
 // ---------------------------------------------------------------------------
 class _QuickActionsGrid extends StatelessWidget {
   const _QuickActionsGrid({required this.items, required this.onTap});
@@ -924,138 +912,369 @@ class _QuickActionsGrid extends StatelessWidget {
   final ValueChanged<QuickActionItem> onTap;
 
   static const _accents = [
-    [Color(0xFF6C5CE7), Color(0xFF8E7CFF)],
     [Color(0xFF2F80ED), Color(0xFF56CCF2)],
     [Color(0xFF11998E), Color(0xFF38EF7D)],
     [Color(0xFFF2994A), Color(0xFFF2C94C)],
   ];
 
+  bool _isAskAi(QuickActionItem item) =>
+      item.routeTag == 'ask_ai' ||
+      item.routeTag == 'ai_copilot' ||
+      item.title.toLowerCase().trim() == 'ask ai';
+
+  @override
+  Widget build(BuildContext context) {
+    // Ask AI already lives permanently in the bottom nav — don't duplicate
+    // it here.
+    final visible = items.where((i) => !_isAskAi(i)).take(3).toList();
+    if (visible.isEmpty) return const SizedBox.shrink();
+
+    final primary = visible.first;
+    final rest = visible.skip(1).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _FeaturedActionCard(
+          item: primary,
+          accent: _accents[0],
+          onTap: () => onTap(primary),
+        ),
+        if (rest.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: List.generate(rest.length, (i) {
+              final item = rest[i];
+              final accent = _accents[(i + 1) % _accents.length];
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                      right: i == rest.length - 1 ? 0 : AppSpacing.md),
+                  child: _CompactActionCard(
+                    item: item,
+                    accent: accent,
+                    onTap: () => onTap(item),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Wide featured tile for the primary quick action — gradient wash
+/// background, glowing icon badge, and a trailing arrow chip.
+class _FeaturedActionCard extends StatelessWidget {
+  const _FeaturedActionCard({
+    required this.item,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final QuickActionItem item;
+  final List<Color> accent;
+  final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final crossAxisCount = constraints.maxWidth > 700 ? 4 : 2;
-        final visible = items.take(4).toList();
-        return GridView.count(
-          crossAxisCount: crossAxisCount,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: AppSpacing.sm,
-          mainAxisSpacing: AppSpacing.sm,
-          childAspectRatio: 2.6,
-          children: List.generate(visible.length, (i) {
-            final item = visible[i];
-            final accent = _accents[i % _accents.length];
-            return _ScaleOnTap(
-              onTap: () => onTap(item),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-                decoration: BoxDecoration(
-                  color: colors.surfaceElevated,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: colors.border),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        gradient: LinearGradient(colors: accent),
-                      ),
-                      child: Icon(item.icon, color: Colors.white, size: 17),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        item.title,
-                        style: AppTypography.body(colors.textPrimary).copyWith(
-                            fontWeight: FontWeight.w600, height: 1.15),
-                        maxLines: 2,
-                        softWrap: true,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
+    return _ScaleOnTap(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              accent[0].withValues(alpha: 0.12),
+              accent[1].withValues(alpha: 0.06),
+              colors.surfaceElevated,
+            ],
+          ),
+          border: Border.all(color: accent[0].withValues(alpha: 0.22)),
+          boxShadow: [
+            BoxShadow(
+              color: accent[0].withValues(alpha: 0.16),
+              blurRadius: 22,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(colors: accent),
+                boxShadow: [
+                  BoxShadow(
+                    color: accent[0].withValues(alpha: 0.45),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
-            );
-          }),
-        );
-      },
+              child: Icon(item.icon, color: Colors.white, size: 24),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Text(item.title,
+                  style: AppTypography.body(colors.textPrimary)
+                      .copyWith(fontWeight: FontWeight.w700, fontSize: 16),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: accent[0].withValues(alpha: 0.14),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.arrow_forward_rounded,
+                  color: accent[0], size: 17),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Smaller tile used for the two secondary quick actions in the row below
+/// the featured card.
+class _CompactActionCard extends StatelessWidget {
+  const _CompactActionCard({
+    required this.item,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final QuickActionItem item;
+  final List<Color> accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    return _ScaleOnTap(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md, vertical: AppSpacing.md),
+        decoration: BoxDecoration(
+          color: colors.surfaceElevated,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: colors.border),
+          boxShadow: [
+            BoxShadow(
+              color: accent[0].withValues(alpha: 0.08),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                gradient: LinearGradient(colors: accent),
+                boxShadow: [
+                  BoxShadow(
+                    color: accent[0].withValues(alpha: 0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Icon(item.icon, color: Colors.white, size: 18),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              item.title,
+              style: AppTypography.body(colors.textPrimary)
+                  .copyWith(fontWeight: FontWeight.w600, fontSize: 13.5),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              softWrap: true,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// KPI GRID — redesigned. Tighter padding, smaller icon chip, taller aspect
-// ratio so each tile takes noticeably less vertical space.
+// KPI GRID
+//
+// v2 — the plain 2x2 grid of thin, cramped tiles (icon + label crammed on
+// one line, number underneath) was replaced with an "advanced" KPI card
+// (gradient icon badge, trend pill, big number, label) — but built as a
+// GridView with a fixed `childAspectRatio`, the tile height was locked
+// regardless of content, so it clipped/overflowed at the bottom on
+// narrower screens.
+//
+// v3 — same visual language, but built as a plain Column of two Rows
+// instead of a GridView. Each tile sizes itself to its own content
+// (`mainAxisSize.min`, no forced aspect ratio), wrapped in
+// `IntrinsicHeight` so the two tiles in a row still match each other's
+// height. This can't overflow no matter the label length, and with
+// tighter padding/icon/font sizes than before it also takes noticeably
+// less vertical space overall. Team Members, Active AI Users, Active AI
+// Tools, and Pending Approvals each keep a distinct accent so the grid
+// doesn't read as four identical boxes.
 // ---------------------------------------------------------------------------
 class _KpiGrid extends StatelessWidget {
   const _KpiGrid({required this.kpis});
 
   final List<KpiCardData> kpis;
 
+  static const _accents = [
+    [Color(0xFF6C5CE7), Color(0xFF8E7CFF)],
+    [Color(0xFF2F80ED), Color(0xFF56CCF2)],
+    [Color(0xFF11998E), Color(0xFF38EF7D)],
+    [Color(0xFFE85D75), Color(0xFFF2994A)],
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = kpis.take(4).toList();
+    if (visible.isEmpty) return const SizedBox.shrink();
+
+    final rows = <List<int>>[];
+    for (var i = 0; i < visible.length; i += 2) {
+      rows.add([i, if (i + 1 < visible.length) i + 1]);
+    }
+
+    return Column(
+      children: [
+        for (var r = 0; r < rows.length; r++) ...[
+          if (r != 0) const SizedBox(height: AppSpacing.sm),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var c = 0; c < rows[r].length; c++) ...[
+                  if (c != 0) const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: _KpiTile(
+                      kpi: visible[rows[r][c]],
+                      accent: _accents[rows[r][c] % _accents.length],
+                      delayMs: 300 + rows[r][c] * 70,
+                    ),
+                  ),
+                ],
+                if (rows[r].length == 1) const Expanded(child: SizedBox()),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _KpiTile extends StatelessWidget {
+  const _KpiTile(
+      {required this.kpi, required this.accent, required this.delayMs});
+
+  final KpiCardData kpi;
+  final List<Color> accent;
+  final int delayMs;
+
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: AppSpacing.sm,
-      mainAxisSpacing: AppSpacing.sm,
-      childAspectRatio: 2.3,
-      children: kpis.take(4).map((kpi) {
-        final isPositive = kpi.trendValue >= 0;
-        return Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-          decoration: BoxDecoration(
-            color: colors.surfaceElevated,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: colors.border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
+    final isPositive = kpi.trendValue >= 0;
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: delayMs),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) => Opacity(
+        opacity: value,
+        child: Transform.translate(
+            offset: Offset(0, (1 - value) * 10), child: child),
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: colors.surfaceElevated,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: colors.border),
+          boxShadow: [
+            BoxShadow(
+              color: accent[0].withValues(alpha: 0.10),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    gradient: LinearGradient(colors: accent),
+                  ),
+                  child: Icon(kpi.icon, color: Colors.white, size: 13),
+                ),
+                const Spacer(),
+                if (kpi.trend.isNotEmpty)
                   Container(
-                    width: 20,
-                    height: 20,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                        color: colors.primaryLight,
-                        borderRadius: BorderRadius.circular(6)),
-                    child: Icon(kpi.icon, color: colors.primary, size: 11),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(kpi.label,
-                        style: AppTypography.caption(colors.textSecondary),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                  ),
-                  Text(kpi.trend,
+                      color: (isPositive ? colors.success : colors.danger)
+                          .withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      kpi.trend,
                       style: AppTypography.caption(
-                          isPositive ? colors.success : colors.danger)),
-                ],
-              ),
-              const SizedBox(height: 4),
-              _AnimatedCounterOrText(
-                  value: kpi.value,
-                  style: AppTypography.body(colors.textPrimary)
-                      .copyWith(fontWeight: FontWeight.w800, fontSize: 16)),
-            ],
-          ),
-        );
-      }).toList(),
+                              isPositive ? colors.success : colors.danger)
+                          .copyWith(fontWeight: FontWeight.w700, fontSize: 9),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            _AnimatedCounterOrText(
+              value: kpi.value,
+              style: AppTypography.body(colors.textPrimary)
+                  .copyWith(fontWeight: FontWeight.w800, fontSize: 17),
+            ),
+            const SizedBox(height: 1),
+            Text(
+              kpi.label,
+              style: AppTypography.caption(colors.textSecondary)
+                  .copyWith(fontWeight: FontWeight.w600, fontSize: 11),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_colors_data.dart';
@@ -14,7 +13,23 @@ import 'engineering_manager_teams_cubit.dart';
 
 /// Engineering Manager · Team
 ///
-/// v4 changes:
+/// v5 changes:
+///  - Employee Detail screen (Productivity / Workload / Budget / AI Tool
+///    Usage / Recent Activity / manager actions) rebuilt with the same
+///    "advanced" visual language used across the rest of the app: every
+///    section header now carries a gradient icon badge instead of plain
+///    text, stat rows use small gradient-icon tiles instead of bare
+///    numbers, the Budget section gained a spend-vs-allocated progress
+///    bar, AI Tool Usage rows now look like real tool cards (icon badge +
+///    progress bar + spend chip) instead of a cramped three-column row,
+///    Recent Activity is now a connected timeline instead of a flat list,
+///    and the four manager actions at the bottom use the same gradient
+///    quick-action tile style as the Home screens — built as a
+///    content-sized 2x2 (`IntrinsicHeight` + `Row`, no `GridView`
+///    `childAspectRatio`) so it can't overflow the way a fixed-ratio grid
+///    can.
+///
+/// v4 changes (carried over):
 ///  - Removed the KPI health-breakdown card from the team hero (Delivery /
 ///    AI Adoption / Productivity / Budget bars) for a cleaner, less
 ///    cluttered hero. The hero now carries an ambient rotating glow instead.
@@ -81,20 +96,15 @@ class _Staggered extends StatelessWidget {
     );
   }
 }
-
 class _ScaleOnTap extends StatefulWidget {
   const _ScaleOnTap({required this.onTap, required this.child});
-
   final VoidCallback onTap;
   final Widget child;
-
   @override
   State<_ScaleOnTap> createState() => _ScaleOnTapState();
 }
-
 class _ScaleOnTapState extends State<_ScaleOnTap> {
   double _scale = 1.0;
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -111,7 +121,6 @@ class _ScaleOnTapState extends State<_ScaleOnTap> {
     );
   }
 }
-
 Route<T> _slideFadeRoute<T>(Widget page) {
   return PageRouteBuilder<T>(
     transitionDuration: const Duration(milliseconds: 340),
@@ -133,16 +142,12 @@ Route<T> _slideFadeRoute<T>(Widget page) {
     },
   );
 }
-
 // ─────────────────────────────────────────────────────────────────────────
 // Ambient pulsing dot — used inside the hero status pill.
 // ─────────────────────────────────────────────────────────────────────────
-
 class _PulseDot extends StatefulWidget {
   const _PulseDot({required this.color});
-
   final Color color;
-
   @override
   State<_PulseDot> createState() => _PulseDotState();
 }
@@ -1354,8 +1359,13 @@ class _StatusBadge extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Engineer Detail screen — photo hero, Productivity / Workload / Budget
-// sections added, plus the four manager actions.
+// Engineer Detail screen — photo hero, Productivity / Workload / Budget /
+// AI Tool Usage / Recent Activity sections, plus the four manager actions.
+//
+// v5 rebuild: every section below now shares one visual language — a
+// gradient icon badge in the section header, and gradient-icon "stat
+// tiles" in place of bare numbers — so the screen reads as a cohesive
+// dashboard instead of a stack of plain text rows.
 // ─────────────────────────────────────────────────────────────────────────
 
 class EngineerDetailScreen extends StatelessWidget {
@@ -1503,10 +1513,22 @@ class _DetailHero extends StatelessWidget {
   }
 }
 
+/// Section header + card shell shared by every detail-screen section below
+/// — a gradient icon badge next to the title instead of plain text, so
+/// each block is visually anchored the same way the rest of the app does
+/// it (hero cards, KPI grids, quick actions).
 class _SectionCard extends StatelessWidget {
-  const _SectionCard(
-      {required this.title, required this.colors, required this.child});
+  const _SectionCard({
+    required this.title,
+    required this.icon,
+    required this.accent,
+    required this.colors,
+    required this.child,
+  });
+
   final String title;
+  final IconData icon;
+  final List<Color> accent;
   final AppColorsData colors;
   final Widget child;
 
@@ -1516,20 +1538,109 @@ class _SectionCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: colors.surfaceElevated,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: colors.border),
+        boxShadow: [
+          BoxShadow(
+            color: accent[0].withValues(alpha: 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: AppTypography.h3(colors.textPrimary)),
-          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  gradient: LinearGradient(colors: accent),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent[0].withValues(alpha: 0.35),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Icon(icon, color: Colors.white, size: 15),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(title, style: AppTypography.h3(colors.textPrimary)),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
           child,
         ],
       ),
     );
   }
 }
+
+/// Small gradient-icon stat used inside section bodies, replacing bare
+/// "number over label" columns.
+class _StatTile extends StatelessWidget {
+  const _StatTile({
+    required this.icon,
+    required this.accent,
+    required this.value,
+    required this.label,
+    required this.colors,
+    this.valueColor,
+  });
+
+  final IconData icon;
+  final List<Color> accent;
+  final String value;
+  final String label;
+  final AppColorsData colors;
+  final Color? valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 26,
+          height: 26,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            gradient: LinearGradient(colors: accent),
+          ),
+          child: Icon(icon, color: Colors.white, size: 13),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          value,
+          style: AppTypography.body(valueColor ?? colors.textPrimary)
+              .copyWith(fontWeight: FontWeight.w800, fontSize: 15),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 1),
+        Text(
+          label,
+          style: AppTypography.caption(colors.textSecondary)
+              .copyWith(fontSize: 11),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+}
+
+const _kProductivityAccent = [Color(0xFF6C5CE7), Color(0xFF8E7CFF)];
+const _kWorkloadAccent = [Color(0xFF2F80ED), Color(0xFF56CCF2)];
+const _kBudgetAccent = [Color(0xFF11998E), Color(0xFF38EF7D)];
+const _kToolsAccent = [Color(0xFFF2994A), Color(0xFFF2C94C)];
+const _kActivityAccent = [Color(0xFFE85D75), Color(0xFF9B51E0)];
 
 class _ProductivitySection extends StatelessWidget {
   const _ProductivitySection({required this.member, required this.colors});
@@ -1546,24 +1657,38 @@ class _ProductivitySection extends StatelessWidget {
             .round();
     return _SectionCard(
       title: 'Productivity',
+      icon: Icons.speed_rounded,
+      accent: _kProductivityAccent,
       colors: colors,
       child: Row(
         children: [
           Expanded(
-              child: _StatBlock(
-                  label: 'Score',
-                  value: '${member.productivityScore}',
-                  colors: colors)),
+            child: _StatTile(
+              icon: Icons.military_tech_rounded,
+              accent: _kProductivityAccent,
+              value: '${member.productivityScore}',
+              label: 'Score',
+              colors: colors,
+            ),
+          ),
           Expanded(
-              child: _StatBlock(
-                  label: 'Task completion',
-                  value: '$completionRate%',
-                  colors: colors)),
+            child: _StatTile(
+              icon: Icons.check_circle_outline_rounded,
+              accent: _kProductivityAccent,
+              value: '$completionRate%',
+              label: 'Task completion',
+              colors: colors,
+            ),
+          ),
           Expanded(
-              child: _StatBlock(
-                  label: 'AI-assisted',
-                  value: member.primaryTool,
-                  colors: colors)),
+            child: _StatTile(
+              icon: Icons.auto_awesome_rounded,
+              accent: _kProductivityAccent,
+              value: member.primaryTool,
+              label: 'AI-assisted',
+              colors: colors,
+            ),
+          ),
         ],
       ),
     );
@@ -1583,8 +1708,11 @@ class _WorkloadSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final capacityColor = _capacityColor();
     return _SectionCard(
       title: 'Workload',
+      icon: Icons.view_kanban_rounded,
+      accent: _kWorkloadAccent,
       colors: colors,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1592,49 +1720,76 @@ class _WorkloadSection extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                  child: _StatBlock(
-                      label: 'Current',
-                      value: '${member.currentTasks}',
-                      colors: colors)),
-              Expanded(
-                  child: _StatBlock(
-                      label: 'Completed',
-                      value: '${member.completedTasks}',
-                      colors: colors)),
-              Expanded(
-                  child: _StatBlock(
-                      label: 'Overdue',
-                      value: '${member.overdueTasks}',
-                      valueColor:
-                          member.overdueTasks > 0 ? colors.danger : null,
-                      colors: colors)),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              Text('Capacity',
-                  style: AppTypography.caption(colors.textSecondary)),
-              const Spacer(),
-              Text('${member.capacityPercent}%',
-                  style: AppTypography.caption(_capacityColor())
-                      .copyWith(fontWeight: FontWeight.w700)),
-            ],
-          ),
-          const SizedBox(height: 4),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(
-                  begin: 0, end: (member.capacityPercent / 100).clamp(0, 1.3)),
-              duration: const Duration(milliseconds: 800),
-              curve: Curves.easeOutCubic,
-              builder: (context, v, _) => LinearProgressIndicator(
-                value: v.clamp(0, 1),
-                minHeight: 7,
-                backgroundColor: colors.border,
-                valueColor: AlwaysStoppedAnimation(_capacityColor()),
+                child: _StatTile(
+                  icon: Icons.pending_actions_rounded,
+                  accent: _kWorkloadAccent,
+                  value: '${member.currentTasks}',
+                  label: 'Current',
+                  colors: colors,
+                ),
               ),
+              Expanded(
+                child: _StatTile(
+                  icon: Icons.task_alt_rounded,
+                  accent: _kWorkloadAccent,
+                  value: '${member.completedTasks}',
+                  label: 'Completed',
+                  colors: colors,
+                ),
+              ),
+              Expanded(
+                child: _StatTile(
+                  icon: Icons.error_outline_rounded,
+                  accent: member.overdueTasks > 0
+                      ? [colors.danger, colors.danger.withValues(alpha: 0.7)]
+                      : _kWorkloadAccent,
+                  value: '${member.overdueTasks}',
+                  label: 'Overdue',
+                  valueColor: member.overdueTasks > 0 ? colors.danger : null,
+                  colors: colors,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text('Capacity',
+                        style: AppTypography.caption(colors.textSecondary)),
+                    const Spacer(),
+                    Text('${member.capacityPercent}%',
+                        style: AppTypography.caption(capacityColor)
+                            .copyWith(fontWeight: FontWeight.w700)),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(
+                        begin: 0,
+                        end: (member.capacityPercent / 100).clamp(0, 1.3)),
+                    duration: const Duration(milliseconds: 800),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, v, _) => LinearProgressIndicator(
+                      value: v.clamp(0, 1),
+                      minHeight: 8,
+                      backgroundColor: colors.border,
+                      valueColor: AlwaysStoppedAnimation(capacityColor),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -1653,69 +1808,93 @@ class _BudgetSection extends StatelessWidget {
     final remaining = (member.allocatedBudget - member.monthlyAiSpend)
         .clamp(0, double.infinity)
         .toDouble();
+    final ratio = member.allocatedBudget <= 0
+        ? 0.0
+        : (member.monthlyAiSpend / member.allocatedBudget).clamp(0.0, 1.0);
+    final barColor = ratio >= 0.95
+        ? colors.danger
+        : (ratio >= 0.8 ? colors.warning : colors.success);
+
     return _SectionCard(
       title: 'Budget',
+      icon: Icons.account_balance_wallet_rounded,
+      accent: _kBudgetAccent,
       colors: colors,
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-              child: _StatBlock(
+          Row(
+            children: [
+              Expanded(
+                child: _StatTile(
+                  icon: Icons.currency_rupee_rounded,
+                  accent: _kBudgetAccent,
+                  value: '₹${_formatAmount(member.monthlyAiSpend)}',
                   label: 'Spend',
-                  value: _formatAmount(member.monthlyAiSpend),
-                  icon: Icons.currency_rupee_rounded,
-                  colors: colors)),
-          Expanded(
-              child: _StatBlock(
+                  colors: colors,
+                ),
+              ),
+              Expanded(
+                child: _StatTile(
+                  icon: Icons.savings_rounded,
+                  accent: _kBudgetAccent,
+                  value: '₹${_formatAmount(member.allocatedBudget)}',
                   label: 'Allocated',
-                  value: _formatAmount(member.allocatedBudget),
-                  icon: Icons.currency_rupee_rounded,
-                  colors: colors)),
-          Expanded(
-              child: _StatBlock(
+                  colors: colors,
+                ),
+              ),
+              Expanded(
+                child: _StatTile(
+                  icon: Icons.account_balance_rounded,
+                  accent: _kBudgetAccent,
+                  value: '₹${_formatAmount(remaining)}',
                   label: 'Remaining',
-                  value: _formatAmount(remaining),
-                  icon: Icons.currency_rupee_rounded,
-                  colors: colors)),
+                  colors: colors,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text('Spend vs allocated',
+                        style: AppTypography.caption(colors.textSecondary)),
+                    const Spacer(),
+                    Text('${(ratio * 100).round()}%',
+                        style: AppTypography.caption(barColor)
+                            .copyWith(fontWeight: FontWeight.w700)),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: ratio),
+                    duration: const Duration(milliseconds: 800),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, v, _) => LinearProgressIndicator(
+                      value: v,
+                      minHeight: 8,
+                      backgroundColor: colors.border,
+                      valueColor: AlwaysStoppedAnimation(barColor),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
-    );
-  }
-}
-
-class _StatBlock extends StatelessWidget {
-  const _StatBlock({
-    required this.label,
-    required this.value,
-    required this.colors,
-    this.icon,
-    this.valueColor,
-  });
-
-  final String label;
-  final String value;
-  final AppColorsData colors;
-  final IconData? icon;
-  final Color? valueColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            if (icon != null)
-              Icon(icon, size: 13, color: valueColor ?? colors.textPrimary),
-            Flexible(
-              child: Text(value,
-                  style: AppTypography.h3(valueColor ?? colors.textPrimary),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis),
-            ),
-          ],
-        ),
-        Text(label, style: AppTypography.caption(colors.textSecondary)),
-      ],
     );
   }
 }
@@ -1730,56 +1909,121 @@ class _ToolBreakdownSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return _SectionCard(
       title: 'AI Tool Usage',
+      icon: Icons.extension_rounded,
+      accent: _kToolsAccent,
       colors: colors,
       child: member.toolBreakdown.isEmpty
           ? Text('No AI tools in use',
               style: AppTypography.body(colors.textSecondary))
           : Column(
               children: [
-                for (final tool in member.toolBreakdown)
+                for (var i = 0; i < member.toolBreakdown.length; i++)
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child: Text(
-                            tool.toolName,
-                            style: AppTypography.body(colors.textPrimary),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        Expanded(
-                          flex: 4,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(999),
-                            child: LinearProgressIndicator(
-                              value: tool.adoptionPercent / 100,
-                              minHeight: 6,
-                              backgroundColor: colors.border,
-                              valueColor:
-                                  AlwaysStoppedAnimation(colors.primary),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Row(
-                          children: [
-                            Icon(Icons.currency_rupee_rounded,
-                                size: 12, color: colors.textSecondary),
-                            Text(
-                              tool.monthlySpend.toStringAsFixed(0),
-                              style:
-                                  AppTypography.caption(colors.textSecondary),
-                            ),
-                          ],
-                        ),
-                      ],
+                    padding: EdgeInsets.only(
+                        bottom:
+                            i == member.toolBreakdown.length - 1 ? 0 : AppSpacing.sm),
+                    child: _ToolUsageTile(
+                      toolName: member.toolBreakdown[i].toolName,
+                      adoptionPercent:
+                          member.toolBreakdown[i].adoptionPercent,
+                      monthlySpend: member.toolBreakdown[i].monthlySpend,
+                      colors: colors,
                     ),
                   ),
               ],
             ),
+    );
+  }
+}
+
+class _ToolUsageTile extends StatelessWidget {
+  const _ToolUsageTile({
+    required this.toolName,
+    required this.adoptionPercent,
+    required this.monthlySpend,
+    required this.colors,
+  });
+
+  final String toolName;
+  final int adoptionPercent;
+  final double monthlySpend;
+  final AppColorsData colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(9),
+                  gradient: const LinearGradient(colors: _kToolsAccent),
+                ),
+                child: const Icon(Icons.smart_toy_rounded,
+                    color: Colors.white, size: 14),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  toolName,
+                  style: AppTypography.body(colors.textPrimary)
+                      .copyWith(fontWeight: FontWeight.w700),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Row(
+                children: [
+                  Icon(Icons.currency_rupee_rounded,
+                      size: 12, color: colors.textSecondary),
+                  Text(
+                    monthlySpend.toStringAsFixed(0),
+                    style: AppTypography.caption(colors.textSecondary)
+                        .copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: adoptionPercent / 100),
+                    duration: const Duration(milliseconds: 800),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, v, _) => LinearProgressIndicator(
+                      value: v,
+                      minHeight: 6,
+                      backgroundColor: colors.border,
+                      valueColor:
+                          AlwaysStoppedAnimation(_kToolsAccent[0]),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text('$adoptionPercent%',
+                  style: AppTypography.caption(_kToolsAccent[0])
+                      .copyWith(fontWeight: FontWeight.w700)),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1805,55 +2049,20 @@ class _RecentActivitySection extends StatelessWidget {
   Widget build(BuildContext context) {
     return _SectionCard(
       title: 'Recent Activity',
+      icon: Icons.history_rounded,
+      accent: _kActivityAccent,
       colors: colors,
       child: member.recentActivity.isEmpty
           ? Text('No recent activity',
               style: AppTypography.body(colors.textSecondary))
           : Column(
               children: [
-                for (final item in member.recentActivity)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            item.title,
-                            style: AppTypography.body(colors.textPrimary),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: _activityColor(item.status)
-                                    .withValues(alpha: 0.14),
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Text(
-                                item.statusLabel,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: _activityColor(item.status),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              item.relativeTime,
-                              style:
-                                  AppTypography.caption(colors.textSecondary),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                for (var i = 0; i < member.recentActivity.length; i++)
+                  _TimelineRow(
+                    item: member.recentActivity[i],
+                    color: _activityColor(member.recentActivity[i].status),
+                    isLast: i == member.recentActivity.length - 1,
+                    colors: colors,
                   ),
               ],
             ),
@@ -1861,12 +2070,122 @@ class _RecentActivitySection extends StatelessWidget {
   }
 }
 
-/// Four manager actions, 2x2 grid: View AI Usage / Adjust Tool Access /
-/// Request Approval / Review Activity.
+/// One row of the recent-activity timeline: a colored dot with a
+/// connecting line down to the next item, so the list reads as a
+/// continuous history rather than a flat stack of rows.
+class _TimelineRow extends StatelessWidget {
+  const _TimelineRow({
+    required this.item,
+    required this.color,
+    required this.isLast,
+    required this.colors,
+  });
+
+  final ActivityItem item;
+  final Color color;
+  final bool isLast;
+  final AppColorsData colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Column(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                margin: const EdgeInsets.only(top: 4),
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.4),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+              ),
+              if (!isLast)
+                Expanded(
+                  child: Container(
+                    width: 2,
+                    margin: const EdgeInsets.symmetric(vertical: 2),
+                    color: colors.border,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Padding(
+              padding:
+                  EdgeInsets.only(bottom: isLast ? 0 : AppSpacing.md),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      item.title,
+                      style: AppTypography.body(colors.textPrimary),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          item.statusLabel,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: color,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        item.relativeTime,
+                        style: AppTypography.caption(colors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Four manager actions — View AI Usage / Adjust Tool Access / Request
+/// Approval / Review Activity — built as a content-sized 2x2
+/// (`IntrinsicHeight` + `Row`, no `GridView` `childAspectRatio`) using the
+/// same gradient quick-action tile style as the Home screens, so it can't
+/// overflow the way a fixed-aspect-ratio grid can.
 class _ActionGrid extends StatelessWidget {
   const _ActionGrid({required this.colors});
 
   final AppColorsData colors;
+
+  static const _accents = [
+    [Color(0xFF6C5CE7), Color(0xFF8E7CFF)],
+    [Color(0xFF2F80ED), Color(0xFF56CCF2)],
+    [Color(0xFF11998E), Color(0xFF38EF7D)],
+    [Color(0xFFE85D75), Color(0xFFF2994A)],
+  ];
 
   void _showComingSoon(BuildContext context, String feature) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1882,39 +2201,111 @@ class _ActionGrid extends StatelessWidget {
       (Icons.approval_rounded, 'Request Approval'),
       (Icons.history_rounded, 'Review Activity'),
     ];
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: AppSpacing.sm,
-      mainAxisSpacing: AppSpacing.sm,
-      childAspectRatio: 2.4,
-      children: actions.map((a) {
-        return _ScaleOnTap(
-          onTap: () => _showComingSoon(context, a.$2),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: colors.surfaceElevated,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: colors.border),
-            ),
+
+    final rows = <List<int>>[];
+    for (var i = 0; i < actions.length; i += 2) {
+      rows.add([i, if (i + 1 < actions.length) i + 1]);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Actions', style: AppTypography.h3(colors.textPrimary)),
+        const SizedBox(height: AppSpacing.sm),
+        for (var r = 0; r < rows.length; r++) ...[
+          if (r != 0) const SizedBox(height: AppSpacing.sm),
+          IntrinsicHeight(
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(a.$1, size: 18, color: colors.primary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(a.$2,
-                      style: AppTypography.caption(colors.textPrimary)
-                          .copyWith(fontWeight: FontWeight.w600),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis),
-                ),
+                for (var c = 0; c < rows[r].length; c++) ...[
+                  if (c != 0) const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: _ActionTile(
+                      icon: actions[rows[r][c]].$1,
+                      label: actions[rows[r][c]].$2,
+                      accent: _accents[rows[r][c] % _accents.length],
+                      colors: colors,
+                      onTap: () =>
+                          _showComingSoon(context, actions[rows[r][c]].$2),
+                    ),
+                  ),
+                ],
+                if (rows[r].length == 1) const Expanded(child: SizedBox()),
               ],
             ),
           ),
-        );
-      }).toList(),
+        ],
+      ],
+    );
+  }
+}
+
+class _ActionTile extends StatelessWidget {
+  const _ActionTile({
+    required this.icon,
+    required this.label,
+    required this.accent,
+    required this.colors,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final List<Color> accent;
+  final AppColorsData colors;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ScaleOnTap(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: colors.surfaceElevated,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.border),
+          boxShadow: [
+            BoxShadow(
+              color: accent[0].withValues(alpha: 0.10),
+              blurRadius: 12,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                gradient: LinearGradient(colors: accent),
+                boxShadow: [
+                  BoxShadow(
+                    color: accent[0].withValues(alpha: 0.35),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Icon(icon, color: Colors.white, size: 16),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                label,
+                style: AppTypography.caption(colors.textPrimary)
+                    .copyWith(fontWeight: FontWeight.w700),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
