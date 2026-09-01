@@ -4,11 +4,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:runrate/features/roles/ceo/home/ai_usage_details_screen.dart';
+import 'package:runrate/features/roles/ceo/home/ceo_budget_forecast.dart';
+import 'package:runrate/features/roles/ceo/home/ceo_company_report.dart';
+import 'package:runrate/features/roles/ceo/home/ceo_compare_departments_screen.dart';
 import 'package:runrate/features/roles/ceo/home/ceobudget_health_card.dart';
 import 'dart:async';
-
 import 'ceo_home_cubit.dart';
-
 import '../shared/models/alert_model.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/routes/route_names.dart';
@@ -136,10 +137,10 @@ class _CeoHomeViewState extends State<_CeoHomeView>
                             ),
                           ),
                           const SizedBox(height: AppSpacing.xl),
-                      const    _Staggered(
+                          const _Staggered(
                             index: 2,
-                            child:  _SectionHeader(
-                                title: 'Key Executive Metrics'),
+                            child:
+                                _SectionHeader(title: 'Key Executive Metrics'),
                           ),
                           const SizedBox(height: AppSpacing.md),
                           _Staggered(
@@ -219,12 +220,15 @@ class _CeoHomeViewState extends State<_CeoHomeView>
         );
       case 'company_report':
         Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) =>
-                _ExecutiveSummaryRoute(summary: data.aiExecutiveSummary)));
+            builder: (_) => CeoCompanyReportScreen(data: data)));
+
       case 'budget_forecast':
-        _showComingSoon(context, 'Budget Forecast');
+        Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => CeoBudgetForecastScreen(data: data)));
       case 'compare_departments':
-        _showComingSoon(context, 'Compare Departments');
+        Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) =>
+                CeoCompareDepartmentsScreen(departments: data.departments)));
       default:
         break;
     }
@@ -1139,8 +1143,7 @@ class _QuickActionsGrid extends StatelessWidget {
     AppColors.of(context);
     // Ask AI already lives permanently in the bottom nav — don't duplicate
     // it here.
-    final visible =
-        items.where((i) => i.routeTag != 'ask_ai').take(3).toList();
+    final visible = items.where((i) => i.routeTag != 'ask_ai').take(3).toList();
 
     if (visible.isEmpty) return const SizedBox.shrink();
 
@@ -1269,8 +1272,8 @@ class _FeaturedActionCard extends StatelessWidget {
                 color: accent[0].withValues(alpha: 0.14),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.arrow_forward_rounded,
-                  color: accent[0], size: 17),
+              child:
+                  Icon(Icons.arrow_forward_rounded, color: accent[0], size: 17),
             ),
           ],
         ),
@@ -2167,31 +2170,6 @@ class _TodaysFocusSection extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _ExecutiveSummaryRoute extends StatelessWidget {
-  const _ExecutiveSummaryRoute({required this.summary});
-  final String summary;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Executive Summary')),
-      body: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Company at a glance',
-                style: AppTypography.h3(colors.textPrimary)),
-            const SizedBox(height: AppSpacing.md),
-            Text(summary, style: AppTypography.body(colors.textSecondary)),
-          ],
-        ),
-      ),
     );
   }
 }

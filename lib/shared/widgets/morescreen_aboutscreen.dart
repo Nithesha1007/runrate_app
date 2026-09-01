@@ -159,7 +159,7 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
   }
 
   void _navigatePlaceholder(BuildContext context, String label) {
-    // TODO: wire real destinations.
+   
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$label — coming soon')),
     );

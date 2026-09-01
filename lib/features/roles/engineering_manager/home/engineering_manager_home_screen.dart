@@ -1,6 +1,4 @@
 ﻿import 'dart:io';
-
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:runrate/features/roles/engineering_manager/ai/engineering_manager_ai_screen.dart';
@@ -1895,7 +1893,7 @@ class _ErrorView extends StatelessWidget {
                 style: AppTypography.body(colors.textSecondary),
                 textAlign: TextAlign.center),
             const SizedBox(height: AppSpacing.md),
-            OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
+            OutlinedButton(onPressed: onRetry, child: const Text('Retry',)),
           ],
         ),
       ),

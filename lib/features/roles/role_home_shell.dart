@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../core/theme/theme_cubit.dart';
 import '../../shared/bloc/bottom_nav_cubit.dart';
 import '../../shared/models/user_model.dart';
 import '../../shared/models/role_enum.dart';
@@ -33,9 +34,20 @@ import 'org_admin/more/org_admin_more_screen.dart';
 /// structure for every role. Tab *content* is swapped based on [user.role].
 /// IndexedStack + BottomNavCubit keep each tab's state/scroll alive when
 /// switching, per spec section 4.
-class RoleHomeShell extends StatelessWidget {
+class RoleHomeShell extends StatefulWidget {
   final UserModel user;
   const RoleHomeShell({super.key, required this.user});
+
+  @override
+  State<RoleHomeShell> createState() => _RoleHomeShellState();
+}
+
+class _RoleHomeShellState extends State<RoleHomeShell> {
+  @override
+  void initState() {
+    super.initState();
+    context.read<ThemeCubit>().setRole(widget.user.role);
+  }
 
   List<Widget> _tabsFor(RoleEnum role) {
     switch (role) {
@@ -84,7 +96,7 @@ class RoleHomeShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tabs = _tabsFor(user.role);
+    final tabs = _tabsFor(widget.user.role);
     return BlocProvider(
       create: (_) => BottomNavCubit(),
       child: Builder(builder: (context) {

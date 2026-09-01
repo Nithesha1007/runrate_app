@@ -13,11 +13,10 @@ import 'features/roles/ceo/more/profile_cubit.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   setupDependencies();
-  final initialThemeMode = await ThemeCubit.loadSavedThemeMode();
   final profileCubit = ProfileCubit();
   await profileCubit.hydrate();
   runApp(RunrateApp(
-    initialThemeMode: initialThemeMode,
+    initialThemeMode: ThemeMode.light,
     profileCubit: profileCubit,
   ));
 }
