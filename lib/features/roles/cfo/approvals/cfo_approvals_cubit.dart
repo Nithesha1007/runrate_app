@@ -1,92 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-
-/// ---------------------------------------------------------------------
-/// Models
-/// ---------------------------------------------------------------------
-
-enum ApprovalStatus { pending, approved, rejected }
-
-class ApprovalRequest {
-  const ApprovalRequest({
-    required this.id,
-    required this.requesterName,
-    required this.category,
-    required this.amount,
-    required this.submittedDaysAgo,
-    this.status = ApprovalStatus.pending,
-    this.rejectionMessage,
-  });
-
-  final String id;
-  final String requesterName;
-  final String category;
-  final double amount;
-  final int submittedDaysAgo;
-  final ApprovalStatus status;
-  final String? rejectionMessage;
-
-  ApprovalRequest copyWith({
-    ApprovalStatus? status,
-    String? rejectionMessage,
-  }) {
-    return ApprovalRequest(
-      id: id,
-      requesterName: requesterName,
-      category: category,
-      amount: amount,
-      submittedDaysAgo: submittedDaysAgo,
-      status: status ?? this.status,
-      rejectionMessage: rejectionMessage ?? this.rejectionMessage,
-    );
-  }
-}
-
-/// ---------------------------------------------------------------------
-/// State
-/// ---------------------------------------------------------------------
-
-abstract class CfoApprovalsState {
-  const CfoApprovalsState();
-}
-
-class CfoApprovalsInitial extends CfoApprovalsState {
-  const CfoApprovalsInitial();
-}
-
-class CfoApprovalsLoading extends CfoApprovalsState {
-  const CfoApprovalsLoading();
-}
-
-class CfoApprovalsLoaded extends CfoApprovalsState {
-  const CfoApprovalsLoaded(this.requests, {this.actionInFlightId});
-
-  final List<ApprovalRequest> requests;
-  final String? actionInFlightId;
-
-  List<ApprovalRequest> get pending =>
-      requests.where((r) => r.status == ApprovalStatus.pending).toList();
-
-  CfoApprovalsLoaded copyWith({
-    List<ApprovalRequest>? requests,
-    String? actionInFlightId,
-    bool clearActionInFlightId = false,
-  }) {
-    return CfoApprovalsLoaded(
-      requests ?? this.requests,
-      actionInFlightId: clearActionInFlightId ? null : (actionInFlightId ?? this.actionInFlightId),
-    );
-  }
-}
-
-class CfoApprovalsError extends CfoApprovalsState {
-  const CfoApprovalsError(this.message);
-
-  final String message;
-}
-
-/// ---------------------------------------------------------------------
-/// Cubit
-/// ---------------------------------------------------------------------
+import 'cfo_approval_state.dart';
 
 class CfoApprovalsCubit extends Cubit<CfoApprovalsState> {
   CfoApprovalsCubit() : super(const CfoApprovalsInitial()) {
@@ -105,6 +18,18 @@ class CfoApprovalsCubit extends Cubit<CfoApprovalsState> {
 
   Future<void> refresh() => load();
 
+  void setTab(ApprovalTab tab) {
+    final current = state;
+    if (current is! CfoApprovalsLoaded) return;
+    emit(current.copyWith(activeTab: tab));
+  }
+
+  void setFilter(ApprovalFilter filter) {
+    final current = state;
+    if (current is! CfoApprovalsLoaded) return;
+    emit(current.copyWith(filter: filter));
+  }
+
   Future<void> approve(String requestId) async {
     final current = state;
     if (current is! CfoApprovalsLoaded) return;
@@ -113,9 +38,11 @@ class CfoApprovalsCubit extends Cubit<CfoApprovalsState> {
     try {
       await Future<void>.delayed(const Duration(milliseconds: 600));
       final updated = current.requests
-          .map((r) => r.id == requestId ? r.copyWith(status: ApprovalStatus.approved) : r)
+          .map((r) => r.id == requestId
+              ? r.copyWith(status: ApprovalStatus.approved, decidedDate: DateTime.now())
+              : r)
           .toList();
-      emit(CfoApprovalsLoaded(updated));
+      emit(current.copyWith(requests: updated, clearActionInFlightId: true));
     } catch (_) {
       emit(current.copyWith(clearActionInFlightId: true));
     }
@@ -130,10 +57,14 @@ class CfoApprovalsCubit extends Cubit<CfoApprovalsState> {
       await Future<void>.delayed(const Duration(milliseconds: 600));
       final updated = current.requests
           .map((r) => r.id == requestId
-              ? r.copyWith(status: ApprovalStatus.rejected, rejectionMessage: message)
+              ? r.copyWith(
+                  status: ApprovalStatus.rejected,
+                  rejectionMessage: message,
+                  decidedDate: DateTime.now(),
+                )
               : r)
           .toList();
-      emit(CfoApprovalsLoaded(updated));
+      emit(current.copyWith(requests: updated, clearActionInFlightId: true));
     } catch (_) {
       emit(current.copyWith(clearActionInFlightId: true));
     }
@@ -143,34 +74,55 @@ class CfoApprovalsCubit extends Cubit<CfoApprovalsState> {
   /// keep the artificial delay pattern for now per spec section 12.
   Future<List<ApprovalRequest>> _fetchApprovals() async {
     await Future<void>.delayed(const Duration(milliseconds: 900));
-    return const [
+    return [
       ApprovalRequest(
         id: 'appr_1',
-        requesterName: 'Priya Menon',
-        category: 'Travel reimbursement',
-        amount: 24500,
-        submittedDaysAgo: 1,
+        title: 'Annual Salesforce renewal',
+        categoryLabel: 'Software',
+        requesterName: 'Priya Shah',
+        requesterRole: 'CFO',
+        requestedDate: DateTime(2026, 8, 15),
+        amount: 54000,
+        priority: ApprovalPriority.urgent,
+        businessJustification:
+            'Annual renewal for the core CRM platform used by sales and support. '
+            'Lapsing would interrupt pipeline tracking for the whole team.',
+        department: 'Sales',
+        currentUsage: 88000,
+        budgetLimit: 120000,
+        status: ApprovalStatus.pending,
       ),
       ApprovalRequest(
         id: 'appr_2',
-        requesterName: 'Arjun Verma',
-        category: 'New SaaS subscription',
-        amount: 68000,
-        submittedDaysAgo: 2,
+        title: 'New AWS Reserved Instances',
+        categoryLabel: 'Infrastructure',
+        requesterName: 'Sam Rivera',
+        requesterRole: 'Eng Mgr',
+        requestedDate: DateTime(2026, 8, 14),
+        amount: 21500,
+        priority: ApprovalPriority.normal,
+        businessJustification:
+            'Locking in reserved pricing for baseline compute ahead of the Q4 traffic '
+            'increase, cutting on-demand spend.',
+        department: 'Engineering',
+        currentUsage: 65000,
+        budgetLimit: 100000,
+        status: ApprovalStatus.pending,
       ),
       ApprovalRequest(
         id: 'appr_3',
-        requesterName: 'Sneha Iyer',
-        category: 'Team offsite budget',
-        amount: 150000,
-        submittedDaysAgo: 3,
-      ),
-      ApprovalRequest(
-        id: 'appr_4',
-        requesterName: 'Karthik Rao',
-        category: 'Equipment purchase',
-        amount: 42000,
-        submittedDaysAgo: 4,
+        title: 'Design team Figma seats',
+        categoryLabel: 'Software',
+        requesterName: 'Alex M.',
+        requesterRole: 'Design Lead',
+        requestedDate: DateTime(2026, 8, 12),
+        amount: 12500,
+        priority: ApprovalPriority.normal,
+        businessJustification: 'Two additional seats for new design hires.',
+        department: 'Design',
+        currentUsage: 32000,
+        budgetLimit: 50000,
+        status: ApprovalStatus.pending,
       ),
     ];
   }

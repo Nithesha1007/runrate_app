@@ -1,68 +1,106 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-/// Status of a task shown on the Home dashboard.
-enum EmployeeTaskStatus { pending, inProgress, done }
+/// Status of a submitted AI-tool request shown on the Home dashboard.
+enum ToolRequestStatus { approved, pending, rejected }
 
-extension EmployeeTaskStatusX on EmployeeTaskStatus {
+extension ToolRequestStatusX on ToolRequestStatus {
   String get label {
     switch (this) {
-      case EmployeeTaskStatus.pending:
+      case ToolRequestStatus.approved:
+        return 'Approved';
+      case ToolRequestStatus.pending:
         return 'Pending';
-      case EmployeeTaskStatus.inProgress:
-        return 'In progress';
-      case EmployeeTaskStatus.done:
-        return 'Done';
+      case ToolRequestStatus.rejected:
+        return 'Rejected';
     }
   }
 
-  Color foreground(BuildContext context) {
+  Color get foreground {
     switch (this) {
-      case EmployeeTaskStatus.pending:
-        return const Color(0xFF633806);
-      case EmployeeTaskStatus.inProgress:
-        return const Color(0xFF0C447C);
-      case EmployeeTaskStatus.done:
-        return const Color(0xFF27500A);
+      case ToolRequestStatus.approved:
+        return const Color(0xFF15803D);
+      case ToolRequestStatus.pending:
+        return const Color(0xFFB45309);
+      case ToolRequestStatus.rejected:
+        return const Color(0xFFB91C1C);
     }
   }
 
-  Color background(BuildContext context) {
+  Color get background {
     switch (this) {
-      case EmployeeTaskStatus.pending:
-        return const Color(0xFFFAC775);
-      case EmployeeTaskStatus.inProgress:
-        return const Color(0xFFB5D4F4);
-      case EmployeeTaskStatus.done:
-        return const Color(0xFFC0DD97);
+      case ToolRequestStatus.approved:
+        return const Color(0xFFDCFCE7);
+      case ToolRequestStatus.pending:
+        return const Color(0xFFFEF3C7);
+      case ToolRequestStatus.rejected:
+        return const Color(0xFFFEE2E2);
     }
   }
 }
 
-class EmployeeTaskItem {
-  const EmployeeTaskItem({
+/// A single KPI-style stat card (value + trend) on the Home dashboard.
+class EmployeeStatCard {
+  const EmployeeStatCard({
     required this.id,
-    required this.title,
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.trendLabel,
+    this.trendUp = true,
+  });
+
+  final String id;
+  final String label;
+  final String value;
+  final IconData icon;
+  final String? trendLabel;
+  final bool trendUp;
+}
+
+/// An active AI-tool subscription billed to the employee's wallet.
+class EmployeeSubscription {
+  const EmployeeSubscription({
+    required this.id,
+    required this.name,
+    required this.planLabel,
+    required this.priceLabel,
+    required this.icon,
+  });
+
+  final String id;
+  final String name;
+  final String planLabel;
+  final String priceLabel;
+  final IconData icon;
+}
+
+/// A submitted request for a new AI tool, and its approval status.
+class EmployeeToolRequest {
+  const EmployeeToolRequest({
+    required this.id,
+    required this.toolName,
     required this.status,
   });
 
   final String id;
-  final String title;
-  final EmployeeTaskStatus status;
+  final String toolName;
+  final ToolRequestStatus status;
 }
 
-class EmployeeAnnouncement {
-  const EmployeeAnnouncement({
+/// A recent alert (policy update, action required, etc.) for the employee.
+class EmployeeAlert {
+  const EmployeeAlert({
     required this.id,
     required this.title,
-    required this.body,
-    required this.postedAt,
+    required this.timeAgo,
+    this.actionLabel,
   });
 
   final String id;
   final String title;
-  final String body;
-  final DateTime postedAt;
+  final String timeAgo;
+  final String? actionLabel;
 }
 
 enum EmployeeHomeStatus { initial, loading, loaded, error }
@@ -73,56 +111,76 @@ class EmployeeHomeState {
     this.status = EmployeeHomeStatus.initial,
     this.employeeName = '',
     this.employeeInitials = '',
-    this.isCheckedIn = false,
-    this.checkInTime,
-    this.tasks = const [],
-    this.leaveBalanceDays = 0,
-    this.announcements = const [],
+    this.roleLabel = 'Employee',
+    this.budgetAssigned = 0,
+    this.budgetUsed = 0,
     this.unreadNotifications = 0,
+    this.statCards = const [],
+    this.subscriptions = const [],
+    this.toolRequests = const [],
+    this.alerts = const [],
     this.errorMessage,
-    this.isCheckingIn = false,
   });
 
   final EmployeeHomeStatus status;
   final String employeeName;
   final String employeeInitials;
-  final bool isCheckedIn;
-  final DateTime? checkInTime;
-  final List<EmployeeTaskItem> tasks;
-  final int leaveBalanceDays;
-  final List<EmployeeAnnouncement> announcements;
+  final String roleLabel;
+  final double budgetAssigned;
+  final double budgetUsed;
   final int unreadNotifications;
+  final List<EmployeeStatCard> statCards;
+  final List<EmployeeSubscription> subscriptions;
+  final List<EmployeeToolRequest> toolRequests;
+  final List<EmployeeAlert> alerts;
   final String? errorMessage;
-  final bool isCheckingIn;
 
   bool get isLoading => status == EmployeeHomeStatus.loading;
   bool get hasError => status == EmployeeHomeStatus.error;
+
+  double get budgetRemaining =>
+      (budgetAssigned - budgetUsed).clamp(0, budgetAssigned).toDouble();
+
+  /// 0.0–1.0 usage ratio for the progress ring / bar.
+  double get budgetUsedFraction =>
+      budgetAssigned <= 0 ? 0 : (budgetUsed / budgetAssigned).clamp(0, 1);
+
+  int get budgetUsedPercent => (budgetUsedFraction * 100).round();
+
+  /// Health label + color for the budget status chip, driven by usage.
+  String get budgetHealthLabel {
+    if (budgetUsedFraction >= 0.95) return 'Over budget';
+    if (budgetUsedFraction >= 0.8) return 'Near limit';
+    return 'Healthy';
+  }
 
   EmployeeHomeState copyWith({
     EmployeeHomeStatus? status,
     String? employeeName,
     String? employeeInitials,
-    bool? isCheckedIn,
-    DateTime? checkInTime,
-    List<EmployeeTaskItem>? tasks,
-    int? leaveBalanceDays,
-    List<EmployeeAnnouncement>? announcements,
+    String? roleLabel,
+    double? budgetAssigned,
+    double? budgetUsed,
     int? unreadNotifications,
+    List<EmployeeStatCard>? statCards,
+    List<EmployeeSubscription>? subscriptions,
+    List<EmployeeToolRequest>? toolRequests,
+    List<EmployeeAlert>? alerts,
     String? errorMessage,
-    bool? isCheckingIn,
   }) {
     return EmployeeHomeState(
       status: status ?? this.status,
       employeeName: employeeName ?? this.employeeName,
       employeeInitials: employeeInitials ?? this.employeeInitials,
-      isCheckedIn: isCheckedIn ?? this.isCheckedIn,
-      checkInTime: checkInTime ?? this.checkInTime,
-      tasks: tasks ?? this.tasks,
-      leaveBalanceDays: leaveBalanceDays ?? this.leaveBalanceDays,
-      announcements: announcements ?? this.announcements,
+      roleLabel: roleLabel ?? this.roleLabel,
+      budgetAssigned: budgetAssigned ?? this.budgetAssigned,
+      budgetUsed: budgetUsed ?? this.budgetUsed,
       unreadNotifications: unreadNotifications ?? this.unreadNotifications,
+      statCards: statCards ?? this.statCards,
+      subscriptions: subscriptions ?? this.subscriptions,
+      toolRequests: toolRequests ?? this.toolRequests,
+      alerts: alerts ?? this.alerts,
       errorMessage: errorMessage,
-      isCheckingIn: isCheckingIn ?? this.isCheckingIn,
     );
   }
 }
@@ -130,8 +188,8 @@ class EmployeeHomeState {
 /// State/cubit for Employee · Home.
 ///
 /// Backed by a mock repository call (artificial delay) until the real
-/// dashboard API is wired up. Swap [_fetchDashboard] / [checkIn]'s body for
-/// actual repository/service calls when the backend is ready.
+/// spend/wallet API is wired up. Swap [_fetchDashboard]'s body for an
+/// actual repository/service call when the backend is ready.
 class EmployeeHomeCubit extends Cubit<EmployeeHomeState> {
   EmployeeHomeCubit() : super(const EmployeeHomeState()) {
     loadDashboard();
@@ -146,29 +204,7 @@ class EmployeeHomeCubit extends Cubit<EmployeeHomeState> {
       emit(
         state.copyWith(
           status: EmployeeHomeStatus.error,
-          errorMessage: 'Could not load your dashboard. Pull to refresh.',
-        ),
-      );
-    }
-  }
-
-  Future<void> checkIn() async {
-    if (state.isCheckedIn || state.isCheckingIn) return;
-    emit(state.copyWith(isCheckingIn: true));
-    try {
-      await Future.delayed(const Duration(milliseconds: 700));
-      emit(
-        state.copyWith(
-          isCheckedIn: true,
-          checkInTime: DateTime.now(),
-          isCheckingIn: false,
-        ),
-      );
-    } catch (_) {
-      emit(
-        state.copyWith(
-          isCheckingIn: false,
-          errorMessage: 'Check-in failed. Try again.',
+          errorMessage: 'Could not load your AI spend overview. Pull to refresh.',
         ),
       );
     }
@@ -177,35 +213,92 @@ class EmployeeHomeCubit extends Cubit<EmployeeHomeState> {
   Future<EmployeeHomeState> _fetchDashboard() async {
     await Future.delayed(const Duration(milliseconds: 900));
     return state.copyWith(
-      employeeName: 'Ravi Kumar',
-      employeeInitials: 'RK',
-      isCheckedIn: false,
-      leaveBalanceDays: 12,
-      unreadNotifications: 3,
-      tasks: const [
-        EmployeeTaskItem(
-          id: 't1',
-          title: 'Submit expense report',
-          status: EmployeeTaskStatus.pending,
+      employeeName: 'Alex',
+      employeeInitials: 'A',
+      roleLabel: 'Employee',
+      budgetAssigned: 100,
+      budgetUsed: 70,
+      unreadNotifications: 1,
+      statCards: const [
+        EmployeeStatCard(
+          id: 's1',
+          label: 'Active Subscriptions',
+          value: '3',
+          icon: Icons.apps_outlined,
+          trendLabel: '+1',
+          trendUp: true,
         ),
-        EmployeeTaskItem(
-          id: 't2',
-          title: 'Client proposal review',
-          status: EmployeeTaskStatus.done,
+        EmployeeStatCard(
+          id: 's2',
+          label: 'Monthly AI Spend',
+          value: '\$70',
+          icon: Icons.bolt_outlined,
+          trendLabel: '12%',
+          trendUp: true,
         ),
-        EmployeeTaskItem(
-          id: 't3',
-          title: 'Team standup notes',
-          status: EmployeeTaskStatus.inProgress,
+        EmployeeStatCard(
+          id: 's3',
+          label: 'Pending Requests',
+          value: '1',
+          icon: Icons.pending_actions_outlined,
+          trendLabel: 'New',
+          trendUp: true,
+        ),
+        EmployeeStatCard(
+          id: 's4',
+          label: 'Budget Used',
+          value: '70%',
+          icon: Icons.donut_large_outlined,
+          trendLabel: '8%',
+          trendUp: true,
         ),
       ],
-      announcements: [
-        EmployeeAnnouncement(
+      subscriptions: const [
+        EmployeeSubscription(
+          id: 'sub1',
+          name: 'ChatGPT Plus',
+          planLabel: 'Monthly Subscription',
+          priceLabel: '\$20.00/mo',
+          icon: Icons.chat_bubble_outline,
+        ),
+        EmployeeSubscription(
+          id: 'sub2',
+          name: 'Claude Pro',
+          planLabel: 'Monthly Subscription',
+          priceLabel: '\$20.00/mo',
+          icon: Icons.auto_awesome_outlined,
+        ),
+        EmployeeSubscription(
+          id: 'sub3',
+          name: 'Midjourney',
+          planLabel: 'Monthly Subscription',
+          priceLabel: '\$30.00/mo',
+          icon: Icons.brush_outlined,
+        ),
+      ],
+      toolRequests: const [
+        EmployeeToolRequest(
+          id: 'r1',
+          toolName: 'Github Copilot',
+          status: ToolRequestStatus.approved,
+        ),
+        EmployeeToolRequest(
+          id: 'r2',
+          toolName: 'Jasper AI',
+          status: ToolRequestStatus.pending,
+        ),
+      ],
+      alerts: const [
+        EmployeeAlert(
           id: 'a1',
-          title: 'Office closed 15 Aug',
-          body:
-              'Office closed on 15 Aug for Independence Day. Plan your leaves accordingly.',
-          postedAt: DateTime.now().subtract(const Duration(days: 1)),
+          title: 'Policy update: new limits on generative image AI tools.',
+          timeAgo: '2h ago',
+        ),
+        EmployeeAlert(
+          id: 'a2',
+          title: 'Action required: verify your ChatGPT Plus receipt for March.',
+          timeAgo: '1d ago',
+          actionLabel: 'Verify',
         ),
       ],
     );

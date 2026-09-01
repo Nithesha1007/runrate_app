@@ -1,66 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'cfo_more_state.dart';
 
-/// ---------------------------------------------------------------------
-/// Models
-/// ---------------------------------------------------------------------
-
-class CfoProfile {
-  const CfoProfile({
-    required this.name,
-    required this.email,
-    required this.role,
-    required this.initials,
-  });
-
-  final String name;
-  final String email;
-  final String role;
-  final String initials;
-}
-
-/// ---------------------------------------------------------------------
-/// State
-/// ---------------------------------------------------------------------
-
-abstract class CfoMoreState {
-  const CfoMoreState();
-}
-
-class CfoMoreInitial extends CfoMoreState {
-  const CfoMoreInitial();
-}
-
-class CfoMoreLoading extends CfoMoreState {
-  const CfoMoreLoading();
-}
-
-class CfoMoreLoaded extends CfoMoreState {
-  const CfoMoreLoaded(this.profile, {this.isLoggingOut = false});
-
-  final CfoProfile profile;
-  final bool isLoggingOut;
-
-  CfoMoreLoaded copyWith({CfoProfile? profile, bool? isLoggingOut}) {
-    return CfoMoreLoaded(
-      profile ?? this.profile,
-      isLoggingOut: isLoggingOut ?? this.isLoggingOut,
-    );
-  }
-}
-
-class CfoMoreError extends CfoMoreState {
-  const CfoMoreError(this.message);
-
-  final String message;
-}
-
-class CfoMoreLoggedOut extends CfoMoreState {
-  const CfoMoreLoggedOut();
-}
-
-/// ---------------------------------------------------------------------
-/// Cubit
-/// ---------------------------------------------------------------------
+export 'cfo_more_state.dart';
 
 class CfoMoreCubit extends Cubit<CfoMoreState> {
   CfoMoreCubit() : super(const CfoMoreInitial()) {
@@ -70,10 +11,10 @@ class CfoMoreCubit extends Cubit<CfoMoreState> {
   Future<void> load() async {
     emit(const CfoMoreLoading());
     try {
-      final profile = await _fetchProfile();
-      emit(CfoMoreLoaded(profile));
+      final data = await _fetchMoreData();
+      emit(data);
     } catch (_) {
-      emit(const CfoMoreError('Could not load your profile. Pull down to retry.'));
+      emit(const CfoMoreError('Could not load this screen. Pull down to retry.'));
     }
   }
 
@@ -92,13 +33,21 @@ class CfoMoreCubit extends Cubit<CfoMoreState> {
 
   /// Mock repository call. Replace with a real API/repository call —
   /// keep the artificial delay pattern for now per spec section 12.
-  Future<CfoProfile> _fetchProfile() async {
+  Future<CfoMoreLoaded> _fetchMoreData() async {
     await Future<void>.delayed(const Duration(milliseconds: 700));
-    return const CfoProfile(
-      name: 'Rahul Khanna',
-      email: 'rahul.khanna@company.com',
-      role: 'Chief Financial Officer',
-      initials: 'RK',
+    return const CfoMoreLoaded(
+      profile: CfoProfile(
+        name: 'Sarah Jenkins',
+        roleLabel: 'CFO / Finance',
+        department: 'Finance',
+        avatarUrl: null,
+      ),
+      departmentsManaged: 12,
+      aiBudgetAllocation: '\$3.10M allocation',
+      walletBalance: '\$14.2k available',
+      savingsInsightsNewCount: 14,
+      notificationsCount: 3,
+      appVersion: 'v2.4.1',
     );
   }
 }
